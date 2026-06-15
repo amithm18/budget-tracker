@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:budget_splitter/main.dart';
 import 'package:budget_splitter/models/group.dart';
 import 'package:budget_splitter/models/member.dart';
@@ -9,8 +7,19 @@ import 'package:budget_splitter/controllers/budget_controller.dart';
 import 'package:budget_splitter/services/storage_service.dart';
 
 class FakeStorageService implements StorageService {
+  String currentUserName = 'Amith';
+
   @override
   Future<void> init() async {}
+  
+  @override
+  String getCurrentUserName() => currentUserName;
+
+  @override
+  Future<void> setCurrentUserName(String name) async {
+    currentUserName = name;
+  }
+
   @override
   List<Group> getGroups() => [];
   @override
@@ -35,9 +44,6 @@ class FakeStorageService implements StorageService {
 
 void main() {
   testWidgets('App renders correctly', (WidgetTester tester) async {
-    final tempDir = Directory.systemTemp.createTempSync('widget_test_');
-    Hive.init(tempDir.path);
-
     final storage = FakeStorageService();
     final controller = BudgetController(storage);
     await controller.init();
@@ -47,10 +53,5 @@ void main() {
     // Verify home screen elements render
     expect(find.text("Welcome back,"), findsOneWidget);
     expect(find.text("TOTAL NET BALANCE"), findsOneWidget);
-
-    await Hive.close();
-    if (tempDir.existsSync()) {
-      tempDir.deleteSync(recursive: true);
-    }
   });
 }

@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'package:hive/hive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:budget_splitter/models/group.dart';
 import 'package:budget_splitter/models/member.dart';
@@ -13,8 +11,18 @@ class FakeStorageService implements StorageService {
   final List<Member> members = [];
   final List<Expense> expenses = [];
 
+  String currentUserName = 'Amith';
+
   @override
   Future<void> init() async {}
+
+  @override
+  String getCurrentUserName() => currentUserName;
+
+  @override
+  Future<void> setCurrentUserName(String name) async {
+    currentUserName = name;
+  }
 
   @override
   List<Group> getGroups() => groups;
@@ -70,22 +78,10 @@ void main() {
   group('Budget Splitter & Settlement Tests', () {
     late FakeStorageService storageService;
     late BudgetController controller;
-    late Directory tempDir;
-
     setUp(() async {
-      tempDir = Directory.systemTemp.createTempSync('budget_splitter_test_');
-      Hive.init(tempDir.path);
-      
       storageService = FakeStorageService();
       controller = BudgetController(storageService);
       await controller.init();
-    });
-
-    tearDown(() async {
-      await Hive.close();
-      if (tempDir.existsSync()) {
-        tempDir.deleteSync(recursive: true);
-      }
     });
 
     test('Should calculate correct equal splits and optimize settlements', () async {

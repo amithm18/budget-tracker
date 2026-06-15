@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import '../models/group.dart';
 import '../models/member.dart';
 import '../models/expense.dart';
@@ -61,9 +60,8 @@ class BudgetController extends ChangeNotifier {
     _members = List<Member>.from(_storageService.getMembers());
     _expenses = List<Expense>.from(_storageService.getExpenses());
 
-    // Load custom username if stored in Hive
-    final box = await Hive.openBox('settings');
-    _currentUserName = box.get('currentUserName', defaultValue: 'Amith') as String;
+    // Load custom username if stored in settings
+    _currentUserName = _storageService.getCurrentUserName();
 
     // Sort groups by creation date descending
     _groups.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -73,8 +71,7 @@ class BudgetController extends ChangeNotifier {
   // --- Profile Operations ---
   Future<void> updateCurrentUserName(String name) async {
     _currentUserName = name.trim();
-    final box = await Hive.openBox('settings');
-    await box.put('currentUserName', _currentUserName);
+    await _storageService.setCurrentUserName(_currentUserName);
     notifyListeners();
   }
 

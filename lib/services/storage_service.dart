@@ -11,12 +11,22 @@ class StorageService {
   late Box _groupsBox;
   late Box _membersBox;
   late Box _expensesBox;
+  late Box _settingsBox;
 
   Future<void> init() async {
     await Hive.initFlutter();
     _groupsBox = await Hive.openBox(_groupsBoxName);
     _membersBox = await Hive.openBox(_membersBoxName);
     _expensesBox = await Hive.openBox(_expensesBoxName);
+    _settingsBox = await Hive.openBox('settings');
+  }
+
+  String getCurrentUserName() {
+    return _settingsBox.get('currentUserName', defaultValue: 'Amith') as String;
+  }
+
+  Future<void> setCurrentUserName(String name) async {
+    await _settingsBox.put('currentUserName', name);
   }
 
   // --- Group Operations ---
@@ -78,5 +88,6 @@ class StorageService {
     await _groupsBox.clear();
     await _membersBox.clear();
     await _expensesBox.clear();
+    await _settingsBox.clear();
   }
 }
