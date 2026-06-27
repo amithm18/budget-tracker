@@ -3,6 +3,7 @@ import 'services/storage_service.dart';
 import 'controllers/budget_controller.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
+import 'screens/welcome_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +29,15 @@ class BudgetSplitterApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Budget Splitter for Groups',
       theme: AppTheme.darkTheme,
-      home: HomeScreen(controller: controller),
+      home: ListenableBuilder(
+        listenable: controller,
+        builder: (context, _) {
+          if (controller.currentUserName.isEmpty) {
+            return WelcomeScreen(controller: controller);
+          }
+          return HomeScreen(controller: controller);
+        },
+      ),
     );
   }
 }

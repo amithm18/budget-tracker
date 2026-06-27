@@ -3,6 +3,7 @@ import '../controllers/budget_controller.dart';
 import '../models/group.dart';
 import '../models/member.dart';
 import '../theme/app_theme.dart';
+import '../widgets/antigravity_background.dart';
 import 'create_group_screen.dart';
 import 'group_details_screen.dart';
 
@@ -21,38 +22,92 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
   }
 
+  Gradient _getGroupGradient(String name) {
+    final int hash = name.hashCode;
+    final List<List<Color>> gradients = [
+      [const Color(0xFF6366F1), const Color(0xFF0EA5E9)], // Indigo -> Sky
+      [const Color(0xFF10B981), const Color(0xFF059669)], // Emerald -> Green
+      [const Color(0xFFF43F5E), const Color(0xFFE11D48)], // Rose -> Red
+      [const Color(0xFFF59E0B), const Color(0xFFD97706)], // Amber -> Orange
+      [const Color(0xFF8B5CF6), const Color(0xFFEC4899)], // Purple -> Pink
+      [const Color(0xFF3B82F6), const Color(0xFF1D4ED8)], // Blue -> Dark Blue
+    ];
+    return LinearGradient(
+      colors: gradients[hash.abs() % gradients.length],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+  }
+
   void _showProfileDialog() {
     final TextEditingController nameEditController =
         TextEditingController(text: widget.controller.currentUserName);
+    String tempCurrency = widget.controller.currency;
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("Edit Profile Name"),
-          content: TextField(
-            controller: nameEditController,
-            decoration: const InputDecoration(
-              labelText: "Your Name",
-              hintText: "Enter your name to track your balances",
-            ),
-            autofocus: true,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (nameEditController.text.trim().isNotEmpty) {
-                  widget.controller.updateCurrentUserName(nameEditController.text);
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text("Save"),
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppTheme.bgSurface,
+              title: const Text("Edit Settings", style: TextStyle(color: AppTheme.textPrimary)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameEditController,
+                    style: const TextStyle(color: AppTheme.textPrimary),
+                    decoration: const InputDecoration(
+                      labelText: "Your Name",
+                      hintText: "Enter your name to track your balances",
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: tempCurrency,
+                    dropdownColor: AppTheme.bgSurface,
+                    style: const TextStyle(color: AppTheme.textPrimary),
+                    decoration: const InputDecoration(
+                      labelText: "Preferred Currency Symbol",
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: '₹', child: Text("₹ (INR)")),
+                      DropdownMenuItem(value: '\$', child: Text("\$ (USD)")),
+                      DropdownMenuItem(value: '€', child: Text("€ (EUR)")),
+                      DropdownMenuItem(value: '£', child: Text("£ (GBP)")),
+                      DropdownMenuItem(value: '¥', child: Text("¥ (JPY/CNY)")),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() {
+                          tempCurrency = val;
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (nameEditController.text.trim().isNotEmpty) {
+                      await widget.controller.updateCurrentUserName(nameEditController.text);
+                      await widget.controller.updateCurrency(tempCurrency);
+                      if (mounted) {
+                        Navigator.pop(context);
+                      }
+                    }
+                  },
+                  child: const Text("Save"),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -67,8 +122,9 @@ class _HomeScreenState extends State<HomeScreen> {
         final groups = widget.controller.groups;
 
         return Scaffold(
-          body: SafeArea(
-            child: Column(
+          body: AntigravityBackground(
+            child: SafeArea(
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Top Header / Profile Section
@@ -128,138 +184,185 @@ class _HomeScreenState extends State<HomeScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   child: Container(
+                    height: 195,
+                    width: double.infinity,
                     decoration: BoxDecoration(
                       gradient: AppTheme.primaryGradient,
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primary.withOpacity(0.3),
-                          blurRadius: 15,
+                          color: AppTheme.primary.withOpacity(0.35),
+                          blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
                       ],
                     ),
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "TOTAL NET BALANCE",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white70,
-                            letterSpacing: 1,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Stack(
+                        children: [
+                          // Decorative transparent shapes to feel organic/premium
+                          Positioned(
+                            right: -30,
+                            top: -30,
+                            child: CircleAvatar(
+                              radius: 80,
+                              backgroundColor: Colors.white.withOpacity(0.08),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "${stats['net']! >= 0 ? '+' : ''}₹${stats['net']!.toStringAsFixed(2)}",
-                          style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                          Positioned(
+                            left: -40,
+                            bottom: -50,
+                            child: CircleAvatar(
+                              radius: 90,
+                              backgroundColor: Colors.black.withOpacity(0.12),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          children: [
-                            // Owed Card
-                            Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white12,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                padding: const EdgeInsets.all(12),
-                                child: Row(
+                          Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const CircleAvatar(
-                                      radius: 14,
-                                      backgroundColor: Colors.white24,
-                                      child: Icon(
-                                        Icons.arrow_downward,
-                                        size: 16,
-                                        color: AppTheme.accentGreen,
+                                    const Text(
+                                      "TOTAL NET BALANCE",
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white70,
+                                        letterSpacing: 1.5,
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            "You're owed",
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: Colors.white70,
-                                            ),
-                                          ),
-                                          Text(
-                                            "₹${stats['owed']!.toStringAsFixed(2)}",
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppTheme.accentGreen,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                    Icon(
+                                      Icons.account_balance_wallet,
+                                      color: Colors.white.withOpacity(0.6),
+                                      size: 20,
                                     ),
                                   ],
                                 ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            // Owe Card
-                            Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white12,
-                                  borderRadius: BorderRadius.circular(16),
+                                const SizedBox(height: 6),
+                                Text(
+                                  "${stats['net']! >= 0 ? '+' : ''}${widget.controller.currency}${stats['net']!.toStringAsFixed(2)}",
+                                  style: const TextStyle(
+                                    fontSize: 34,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
-                                padding: const EdgeInsets.all(12),
-                                child: Row(
+                                const Spacer(),
+                                Row(
                                   children: [
-                                    const CircleAvatar(
-                                      radius: 14,
-                                      backgroundColor: Colors.white24,
-                                      child: Icon(
-                                        Icons.arrow_upward,
-                                        size: 16,
-                                        color: AppTheme.accentRed,
+                                    // Owed Card
+                                    Expanded(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(0.1),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        padding: const EdgeInsets.all(12),
+                                        child: Row(
+                                          children: [
+                                            const CircleAvatar(
+                                              radius: 13,
+                                              backgroundColor: Colors.white24,
+                                              child: Icon(
+                                                Icons.arrow_downward,
+                                                size: 14,
+                                                color: AppTheme.accentGreen,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    "You're owed",
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: Colors.white70,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    "${widget.controller.currency}${stats['owed']!.toStringAsFixed(1)}",
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: AppTheme.accentGreen,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 12),
+                                    // Owe Card
                                     Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            "You owe",
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: Colors.white70,
-                                            ),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(0.1),
+                                            width: 1,
                                           ),
-                                          Text(
-                                            "₹${stats['owe']!.toStringAsFixed(2)}",
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppTheme.accentRed,
+                                        ),
+                                        padding: const EdgeInsets.all(12),
+                                        child: Row(
+                                          children: [
+                                            const CircleAvatar(
+                                              radius: 13,
+                                              backgroundColor: Colors.white24,
+                                              child: Icon(
+                                                Icons.arrow_upward,
+                                                size: 14,
+                                                color: AppTheme.accentRed,
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    "You owe",
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: Colors.white70,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    "${widget.controller.currency}${stats['owe']!.toStringAsFixed(1)}",
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: AppTheme.accentRed,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ],
-                                ),
-                              ),
+                                )
+                              ],
                             ),
-                          ],
-                        )
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -296,7 +399,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-          ),
+          )),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () {
               Navigator.push(
@@ -385,11 +488,11 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (owed > 0) {
-        statusText = "You are owed ₹${owed.toStringAsFixed(1)}";
+        statusText = "You are owed ${widget.controller.currency}${owed.toStringAsFixed(1)}";
         statusColor = AppTheme.accentGreen;
         statusIcon = Icons.call_received;
       } else if (owe > 0) {
-        statusText = "You owe ₹${owe.toStringAsFixed(1)}";
+        statusText = "You owe ${widget.controller.currency}${owe.toStringAsFixed(1)}";
         statusColor = AppTheme.accentRed;
         statusIcon = Icons.call_made;
       } else if (widget.controller.getExpensesForGroup(group.id).isNotEmpty) {
@@ -455,79 +558,99 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             );
           },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // Group Icon/Initial
-                Container(
-                  height: 52,
-                  width: 52,
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient,
-                    borderRadius: BorderRadius.circular(12),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(
+                    color: statusColor == AppTheme.textSecondary
+                        ? Colors.transparent
+                        : statusColor,
+                    width: 5,
                   ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    group.name.substring(0, group.name.length >= 2 ? 2 : 1).toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                ),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // Group Icon/Initial
+                  Container(
+                    height: 52,
+                    width: 52,
+                    decoration: BoxDecoration(
+                      gradient: _getGroupGradient(group.name),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      group.name.substring(0, group.name.length >= 2 ? 2 : 1).toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
+                  const SizedBox(width: 16),
 
-                // Group Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        group.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "${members.length} members",
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Group Balance Status
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                  // Group Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(statusIcon, size: 14, color: statusColor),
-                        const SizedBox(width: 4),
                         Text(
-                          statusText,
-                          style: TextStyle(
-                            fontSize: 12,
+                          group.name,
+                          style: const TextStyle(
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: statusColor,
+                            color: AppTheme.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "${members.length} members",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ],
+                  ),
+
+                  // Group Balance Status
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(statusIcon, size: 14, color: statusColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            statusText,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: statusColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

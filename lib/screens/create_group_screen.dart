@@ -16,6 +16,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _nameController = TextEditingController();
   final _memberInputController = TextEditingController();
   final List<String> _membersList = [];
+  DateTime? _selectedDueDate;
 
   @override
   void initState() {
@@ -71,6 +72,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       await widget.controller.createGroup(
         _nameController.text.trim(),
         _membersList,
+        dueDate: _selectedDueDate,
       );
       if (mounted) {
         Navigator.pop(context);
@@ -124,6 +126,89 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 24),
+
+              // Settle-up Deadline Date Picker
+              const Text(
+                "Settlement Deadline (Optional)",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryLight,
+                ),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now().add(const Duration(days: 7)),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: const ColorScheme.dark(
+                            primary: AppTheme.primary,
+                            onPrimary: Colors.white,
+                            surface: AppTheme.bgSurface,
+                            onSurface: AppTheme.textPrimary,
+                          ),
+                          textButtonTheme: TextButtonThemeData(
+                            style: TextButton.styleFrom(foregroundColor: AppTheme.primaryLight),
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _selectedDueDate = picked;
+                    });
+                  }
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.bgSurface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.border, width: 1.2),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_month, color: AppTheme.primaryLight),
+                          const SizedBox(width: 12),
+                          Text(
+                            _selectedDueDate == null
+                                ? "No Deadline Set"
+                                : "${_selectedDueDate!.day}/${_selectedDueDate!.month}/${_selectedDueDate!.year}",
+                            style: TextStyle(
+                              color: _selectedDueDate == null ? AppTheme.textSecondary : AppTheme.textPrimary,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_selectedDueDate != null)
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedDueDate = null;
+                            });
+                          },
+                          child: const Icon(Icons.clear, color: AppTheme.textSecondary, size: 20),
+                        )
+                      else
+                        const Icon(Icons.arrow_drop_down, color: AppTheme.textSecondary),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
 

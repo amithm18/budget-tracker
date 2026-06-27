@@ -4,6 +4,7 @@ class Group {
   final List<String> memberIds;    // references to members
   final List<String> expenseIds;   // references to expenses
   final DateTime createdAt;
+  final DateTime? dueDate;         // deadline for settlement
 
   Group({
     required this.id,
@@ -11,6 +12,7 @@ class Group {
     required this.memberIds,
     required this.expenseIds,
     required this.createdAt,
+    this.dueDate,
   });
 
   Map<String, dynamic> toMap() => {
@@ -19,6 +21,7 @@ class Group {
         'memberIds': memberIds,
         'expenseIds': expenseIds,
         'createdAt': createdAt.toIso8601String(),
+        'dueDate': dueDate?.toIso8601String(),
       };
 
   factory Group.fromMap(Map<dynamic, dynamic> map) => Group(
@@ -27,5 +30,6 @@ class Group {
         memberIds: List<String>.from(map['memberIds'] as List? ?? []),
         expenseIds: List<String>.from(map['expenseIds'] as List? ?? []),
         createdAt: DateTime.parse(map['createdAt'] as String),
+        dueDate: map['dueDate'] != null ? DateTime.parse(map['dueDate'] as String) : null,
       );
 }
