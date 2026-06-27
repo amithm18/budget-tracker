@@ -12,6 +12,7 @@ class FakeStorageService implements StorageService {
   final List<Expense> expenses = [];
 
   String currentUserName = 'Amith';
+  String currency = '₹';
 
   @override
   Future<void> init() async {}
@@ -22,6 +23,14 @@ class FakeStorageService implements StorageService {
   @override
   Future<void> setCurrentUserName(String name) async {
     currentUserName = name;
+  }
+
+  @override
+  String getCurrency() => currency;
+
+  @override
+  Future<void> setCurrency(String symbol) async {
+    currency = symbol;
   }
 
   @override

@@ -233,9 +233,9 @@ class _RoulettePainter extends CustomPainter {
     for (int i = 0; i < n; i++) {
       final startAngle = i * sweepAngle + wheelAngle;
       
-      // Alternate sector colors using cosmic palette
+      // Alternate sector colors using auroral palette
       final sectorPaint = Paint()
-        ..color = (i % 2 == 0) ? AppTheme.bgSurface : const Color(0xFF14122E)
+        ..color = (i % 2 == 0) ? AppTheme.bgSurface : const Color(0xFF141328)
         ..style = PaintingStyle.fill;
         
       canvas.drawArc(
