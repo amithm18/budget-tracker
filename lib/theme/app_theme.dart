@@ -2,24 +2,24 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   // Brand Colors
-  static const Color primary = Color(0xFF5F5DEC); // Electric Indigo
-  static const Color primaryLight = Color(0xFF818CF8);
-  static const Color secondary = Color(0xFF0EA5E9); // Sky blue
+  static const Color primary = Color(0xFF8B5CF6); // Cosmic Violet
+  static const Color primaryLight = Color(0xFFA78BFA); // Cosmic Lavender
+  static const Color secondary = Color(0xFF06B6D4); // Starlight Cyan
   static const Color accentGreen = Color(0xFF10B981); // Emerald green (owed)
   static const Color accentRed = Color(0xFFF43F5E); // Rose/red (owe)
   
-  // Neutral Colors (Premium Obsidian Dark Theme)
-  static const Color bgDark = Color(0xFF090D16); // Obsidian Black
-  static const Color bgSurface = Color(0xFF111928); // Deep Slate Navy
-  static const Color bgSurfaceLight = Color(0xFF1F2A37); // Light Slate Navy
+  // Neutral Colors (Premium Cosmic Space Theme)
+  static const Color bgDark = Color(0xFF05070F); // Deep Space Black-Navy
+  static const Color bgSurface = Color(0xFF0D1226); // Space Navy
+  static const Color bgSurfaceLight = Color(0xFF181F3D); // Muted Space Navy
   static const Color textPrimary = Color(0xFFF9FAFB); // Pure Soft White
-  static const Color textSecondary = Color(0xFF9CA3AF); // Muted grey
-  static const Color border = Color(0xFF1F2A37);
-  static const Color glassBorder = Color(0x1AFFFFFF); // Semi-transparent overlay border
+  static const Color textSecondary = Color(0xFF9CA3AF); // Muted Grey
+  static const Color border = Color(0xFF1F293D);
+  static const Color glassBorder = Color(0x1A8B5CF6); // Semi-transparent cosmic violet border
 
   // Gradients
   static const Gradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF5F5DEC), Color(0xFF0EA5E9)],
+    colors: [Color(0xFF8B5CF6), Color(0xFF06B6D4)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

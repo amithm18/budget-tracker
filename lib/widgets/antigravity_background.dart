@@ -13,6 +13,8 @@ Color _hexToColor(String hex) {
   return Color(int.parse(hex, radix: 16));
 }
 
+enum StarType { standard, twinkle, flare }
+
 class Particle3D {
   // 3D coordinate space positions
   double x;
@@ -26,6 +28,7 @@ class Particle3D {
   double rw;
   
   Color color;
+  StarType starType;
 
   Particle3D({
     required this.x,
@@ -36,6 +39,27 @@ class Particle3D {
     required this.rz,
     required this.rw,
     required this.color,
+    required this.starType,
+  });
+}
+
+class ShootingStar {
+  double startX;
+  double startY;
+  double endX;
+  double endY;
+  double progress; // 0.0 to 1.0
+  double speed;
+  double size;
+
+  ShootingStar({
+    required this.startX,
+    required this.startY,
+    required this.endX,
+    required this.endY,
+    required this.progress,
+    required this.speed,
+    required this.size,
   });
 }
 
@@ -57,14 +81,14 @@ class AntigravityBackground extends StatefulWidget {
   const AntigravityBackground({
     super.key,
     required this.child,
-    this.particleCount = 100, // Reduced from 200 for butter-smooth mobile execution
+    this.particleCount = 120, // Clean, performance-friendly star count
     this.particleSpread = 15.0,
     this.speed = 0.05,
-    this.particleColors = const ['#5F5DEC', '#0EA5E9', '#FFFFFF'], // Indigo, Sky Blue, and White stardust
+    this.particleColors = const ['#A78BFA', '#06B6D4', '#FFFFFF', '#6366F1'], // Space colors
     this.moveParticlesOnHover = true,
     this.particleHoverFactor = 1.0,
     this.alphaParticles = true,
-    this.particleBaseSize = 40.0,
+    this.particleBaseSize = 30.0,
     this.sizeRandomness = 0.8,
     this.cameraDistance = 25.0,
     this.disableRotation = false,
@@ -79,6 +103,7 @@ class _AntigravityBackgroundState extends State<AntigravityBackground>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   final List<Particle3D> _particles = [];
+  final List<ShootingStar> _shootingStars = [];
   final Random _random = Random();
   
   // Mouse interaction state tracking
@@ -120,6 +145,17 @@ class _AntigravityBackgroundState extends State<AntigravityBackground>
       // Distribute points radially inside sphere
       final r = cuberoot(_random.nextDouble());
       
+      // Determine star type distribution
+      final randVal = _random.nextDouble();
+      StarType starType;
+      if (randVal < 0.70) {
+        starType = StarType.standard;
+      } else if (randVal < 0.90) {
+        starType = StarType.twinkle;
+      } else {
+        starType = StarType.flare;
+      }
+
       _particles.add(Particle3D(
         x: x * r,
         y: y * r,
@@ -129,6 +165,7 @@ class _AntigravityBackgroundState extends State<AntigravityBackground>
         rz: _random.nextDouble(),
         rw: _random.nextDouble(),
         color: colors[_random.nextInt(colors.length)],
+        starType: starType,
       ));
     }
   }
@@ -149,7 +186,7 @@ class _AntigravityBackgroundState extends State<AntigravityBackground>
       onHover: (event) {
         if (widget.moveParticlesOnHover) {
           final size = MediaQuery.of(context).size;
-          // Normalize mouse coordinates to [-1, 1] as in WebGL
+          // Normalize mouse coordinates to [-1, 1]
           final mx = (event.localPosition.dx / size.width) * 2 - 1;
           final my = -((event.localPosition.dy / size.height) * 2 - 1);
           _targetMouse = Offset(mx, my);
@@ -161,13 +198,14 @@ class _AntigravityBackgroundState extends State<AntigravityBackground>
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
-          _updatePhysics();
+          _updatePhysics(MediaQuery.of(context).size);
           return Stack(
             children: [
               Positioned.fill(
                 child: CustomPaint(
                   painter: Particle3DPainter(
                     particles: _particles,
+                    shootingStars: _shootingStars,
                     elapsedTime: _elapsedTime,
                     spread: widget.particleSpread,
                     baseSize: widget.particleBaseSize,
@@ -190,18 +228,48 @@ class _AntigravityBackgroundState extends State<AntigravityBackground>
     );
   }
 
-  void _updatePhysics() {
+  void _updatePhysics(Size size) {
     // Increment time delta based on speed multiplier
     _elapsedTime += widget.speed * 0.16; // Approx tick rate
     
     // Lerp hover mouse tracking coordinate to create smooth movement delays
     _smoothMouseX += (_targetMouse.dx - _smoothMouseX) * 0.05;
     _smoothMouseY += (_targetMouse.dy - _smoothMouseY) * 0.05;
+
+    // Update active shooting stars
+    for (int i = _shootingStars.length - 1; i >= 0; i--) {
+      final s = _shootingStars[i];
+      s.progress += s.speed;
+      if (s.progress >= 1.0) {
+        _shootingStars.removeAt(i);
+      }
+    }
+
+    // Occasional shooting star spawning
+    if (size.width > 0 && size.height > 0) {
+      if (_random.nextDouble() < 0.005 && _shootingStars.length < 3) {
+        final startX = _random.nextDouble() * size.width;
+        final startY = _random.nextDouble() * (size.height * 0.4); // Top 40% of screen
+        final angle = (35 + _random.nextDouble() * 20) * pi / 180; // Fly down-left at 35-55 deg
+        final length = 200.0 + _random.nextDouble() * 250.0;
+
+        _shootingStars.add(ShootingStar(
+          startX: startX,
+          startY: startY,
+          endX: startX - cos(angle) * length,
+          endY: startY + sin(angle) * length,
+          progress: 0.0,
+          speed: 0.015 + _random.nextDouble() * 0.02,
+          size: 1.2 + _random.nextDouble() * 1.5,
+        ));
+      }
+    }
   }
 }
 
 class Particle3DPainter extends CustomPainter {
   final List<Particle3D> particles;
+  final List<ShootingStar> shootingStars;
   final double elapsedTime;
   final double spread;
   final double baseSize;
@@ -215,6 +283,7 @@ class Particle3DPainter extends CustomPainter {
 
   Particle3DPainter({
     required this.particles,
+    required this.shootingStars,
     required this.elapsedTime,
     required this.spread,
     required this.baseSize,
@@ -234,10 +303,10 @@ class Particle3DPainter extends CustomPainter {
     final centerX = size.width / 2.0;
     final centerY = size.height / 2.0;
 
-    // Standard camera rotation values from WebGL update loop
-    final double rotX = disableRotation ? 0.0 : sin(elapsedTime * 0.02) * 0.1;
-    final double rotY = disableRotation ? 0.0 : cos(elapsedTime * 0.05) * 0.15;
-    final double rotZ = disableRotation ? 0.0 : elapsedTime * 0.1;
+    // Camera rotation values
+    final double rotX = disableRotation ? 0.0 : sin(elapsedTime * 0.01) * 0.06;
+    final double rotY = disableRotation ? 0.0 : cos(elapsedTime * 0.03) * 0.08;
+    final double rotZ = disableRotation ? 0.0 : elapsedTime * 0.05;
 
     final cosX = cos(rotX), sinX = sin(rotX);
     final cosY = cos(rotY), sinY = sin(rotY);
@@ -245,22 +314,23 @@ class Particle3DPainter extends CustomPainter {
 
     final paint = Paint();
 
+    // 1. Draw particles (stars)
     for (var p in particles) {
-      // 1. Initial WebGL spreading formula
+      // Spreading formula
       double px = p.x * spread;
       double py = p.y * spread;
       double pz = p.z * spread * 10.0;
 
-      // 2. Dynamic sinusoidal wave offset animations matching React shader
-      px += sin(elapsedTime * p.rz + 6.28 * p.rw) * (0.1 + (1.5 - 0.1) * p.rx);
-      py += sin(elapsedTime * p.ry + 6.28 * p.rx) * (0.1 + (1.5 - 0.1) * p.rw);
-      pz += sin(elapsedTime * p.rw + 6.28 * p.ry) * (0.1 + (1.5 - 0.1) * p.rz);
+      // Wave offset animation
+      px += sin(elapsedTime * p.rz + 6.28 * p.rw) * (0.1 + (1.2 - 0.1) * p.rx);
+      py += sin(elapsedTime * p.ry + 6.28 * p.rx) * (0.1 + (1.2 - 0.1) * p.rw);
+      pz += sin(elapsedTime * p.rw + 6.28 * p.ry) * (0.1 + (1.2 - 0.1) * p.rz);
 
-      // Apply hover interaction offset
+      // Hover interaction offset
       px += hoverOffsetX;
       py += hoverOffsetY;
 
-      // 3. Apply 3D rotation transformations
+      // Rotation transformations
       // Y-axis rotation
       double x1 = px * cosY - pz * sinY;
       double z1 = px * sinY + pz * cosY;
@@ -271,24 +341,20 @@ class Particle3DPainter extends CustomPainter {
       double x3 = x1 * cosZ - y2 * sinZ;
       double y3 = x1 * sinZ + y2 * cosZ;
 
-      // 4. Perspective Camera projection mapping
-      // Camera sits at (0, 0, cameraDistance). Offset particle coordinate along Z.
+      // Perspective Camera projection mapping
       double cameraDepth = cameraDistance + z2;
-      if (cameraDepth <= 0.1) continue; // Skip if behind camera
+      if (cameraDepth <= 0.1) continue;
 
-      // Projection multiplier based on camera field of depth
       double scale = cameraDistance / cameraDepth;
       
-      // Map coordinates to center-oriented viewport
       double screenX = centerX + x3 * scale * (size.width / 40.0);
       double screenY = centerY + y3 * scale * (size.height / 40.0);
 
-      // Skip drawing if coordinates fall completely off-screen
       if (screenX < -50 || screenX > size.width + 50 || screenY < -50 || screenY > size.height + 50) {
         continue;
       }
 
-      // 5. Compute point sizing relative to perspective depth
+      // Compute point sizing
       double sizeFactor;
       if (sizeRandomness == 0.0) {
         sizeFactor = baseSize;
@@ -296,28 +362,90 @@ class Particle3DPainter extends CustomPainter {
         sizeFactor = baseSize * (1.0 + sizeRandomness * (p.rx - 0.5));
       }
       
-      // Final radius scale
+      // Calculate star radius
       double radius = (sizeFactor * scale) / (cameraDepth * pixelRatio * 2.0);
       if (radius <= 0.1) continue;
 
-      // 6. Color drawing and alpha variations
+      // Apply twinkling effect
+      double alphaMultiplier = 1.0;
+      if (p.starType == StarType.twinkle) {
+        alphaMultiplier = 0.2 + 0.8 * ((sin(elapsedTime * 4.0 + p.rx * 50.0) + 1.0) / 2.0);
+      } else if (p.starType == StarType.flare) {
+        alphaMultiplier = 0.5 + 0.5 * ((cos(elapsedTime * 2.5 + p.ry * 30.0) + 1.0) / 2.0);
+      }
+
+      int alphaVal = ((p.rx * 180).round() + 75);
+      alphaVal = (alphaVal * alphaMultiplier).round().clamp(0, 255);
+
       if (alphaParticles) {
-        // Render soft glow gradient for organic alpha effect
-        paint.color = p.color.withAlpha((p.rx * 200).round() + 55);
+        // Soft Glow
+        paint.color = p.color.withAlpha(alphaVal);
         paint.shader = RadialGradient(
           colors: [
-            p.color.withAlpha((p.rx * 220).round() + 35),
+            p.color.withAlpha(alphaVal),
             p.color.withAlpha(0),
           ],
-        ).createShader(Rect.fromCircle(center: Offset(screenX, screenY), radius: radius * 1.5));
+        ).createShader(Rect.fromCircle(center: Offset(screenX, screenY), radius: radius * 2.0));
         
-        canvas.drawCircle(Offset(screenX, screenY), radius * 1.5, paint);
-        paint.shader = null; // Reset shader
+        canvas.drawCircle(Offset(screenX, screenY), radius * 2.0, paint);
+        paint.shader = null;
       } else {
-        // Render solid color dot
-        paint.color = p.color;
+        paint.color = p.color.withAlpha(alphaVal);
         canvas.drawCircle(Offset(screenX, screenY), radius, paint);
       }
+
+      // Draw cross flare glow lines for brighter flare stars
+      if (p.starType == StarType.flare && alphaVal > 100) {
+        final flarePaint = Paint()
+          ..color = p.color.withAlpha((alphaVal * 0.35).round())
+          ..strokeWidth = 0.8;
+        canvas.drawLine(
+          Offset(screenX - radius * 4.5, screenY),
+          Offset(screenX + radius * 4.5, screenY),
+          flarePaint,
+        );
+        canvas.drawLine(
+          Offset(screenX, screenY - radius * 4.5),
+          Offset(screenX, screenY + radius * 4.5),
+          flarePaint,
+        );
+      }
+    }
+
+    // 2. Draw shooting stars / comets
+    for (var s in shootingStars) {
+      final dx = s.endX - s.startX;
+      final dy = s.endY - s.startY;
+      final headX = s.startX + dx * s.progress;
+      final headY = s.startY + dy * s.progress;
+
+      // Calculate trail length
+      const trailLength = 70.0;
+      final dist = sqrt(dx * dx + dy * dy);
+      final trailProgress = max(0.0, s.progress - (trailLength / dist));
+      final trailX = s.startX + dx * trailProgress;
+      final trailY = s.startY + dy * trailProgress;
+
+      // Draw fading trail line
+      final trailPaint = Paint()
+        ..strokeWidth = s.size
+        ..strokeCap = StrokeCap.round
+        ..shader = LinearGradient(
+          colors: [
+            Colors.white.withOpacity(0.0),
+            Colors.white.withOpacity(0.4),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ).createShader(Rect.fromPoints(Offset(trailX, trailY), Offset(headX, headY)));
+
+      canvas.drawLine(Offset(trailX, trailY), Offset(headX, headY), trailPaint);
+
+      // Draw bright head
+      final headPaint = Paint()
+        ..color = Colors.white.withOpacity(0.9)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1);
+      canvas.drawCircle(Offset(headX, headY), s.size, headPaint);
     }
   }
 

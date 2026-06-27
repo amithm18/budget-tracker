@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../controllers/budget_controller.dart';
@@ -7,6 +8,7 @@ import '../models/group.dart';
 import '../theme/app_theme.dart';
 import '../widgets/antigravity_background.dart';
 import '../widgets/analytics_pie_chart.dart';
+import '../widgets/roulette_wheel.dart';
 import 'add_expense_screen.dart';
 
 class GroupDetailsScreen extends StatefulWidget {
@@ -30,6 +32,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   String? _selectedCategory;
   bool _isSpinning = false;
   int _rouletteSelectedIndex = -1;
+  final _rouletteController = RouletteController();
 
   Widget _getCategoryAvatar(String title) {
     final t = title.toLowerCase();
@@ -1520,6 +1523,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
       );
     }
 
+    final List<String> memberNames = members.map((m) => m.name).toList();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -1542,85 +1547,71 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
           const SizedBox(height: 40),
 
           // The Roulette Display area
-          Container(
-            height: 220,
-            width: double.infinity,
-            alignment: Alignment.center,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // outer ring decorative
-                Container(
-                  height: 200,
-                  width: 200,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: _isSpinning ? AppTheme.primary : AppTheme.glassBorder, width: 4),
-                  ),
+          RouletteWheel(
+            names: memberNames,
+            controller: _rouletteController,
+            onSpinComplete: (winnerIndex) {
+              setState(() {
+                _rouletteSelectedIndex = winnerIndex;
+                _isSpinning = false;
+              });
+
+              // Show winner toast/banner
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("🎉 ${members[winnerIndex].name} has been chosen to pay!"),
+                  backgroundColor: AppTheme.primary,
                 ),
-                
-                // Display the current cycling member
-                if (_rouletteSelectedIndex >= 0 && _rouletteSelectedIndex < members.length)
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 100),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    decoration: BoxDecoration(
-                      color: _isSpinning 
-                          ? AppTheme.primary.withOpacity(0.2)
-                          : AppTheme.accentGreen.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _isSpinning ? AppTheme.primaryLight : AppTheme.accentGreen,
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (_isSpinning ? AppTheme.primary : AppTheme.accentGreen).withOpacity(0.2),
-                          blurRadius: 15,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _isSpinning ? "🎯 PICKING..." : "🏆 CHOSEN PAYER",
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: _isSpinning ? AppTheme.primaryLight : AppTheme.accentGreen,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          members[_rouletteSelectedIndex].name,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text("🎲", style: TextStyle(fontSize: 40)),
-                      SizedBox(height: 8),
-                      Text(
-                        "Tap below to roll",
-                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
+              );
+            },
           ),
           
           const SizedBox(height: 40),
+
+          // Winner Display Area
+          if (!_isSpinning && _rouletteSelectedIndex >= 0 && _rouletteSelectedIndex < members.length)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: AppTheme.accentGreen.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppTheme.accentGreen,
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.accentGreen.withOpacity(0.2),
+                    blurRadius: 15,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    "🏆 CHOSEN PAYER",
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.accentGreen,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    members[_rouletteSelectedIndex].name,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
           // Spin Button
           SizedBox(
@@ -1629,45 +1620,16 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             child: ElevatedButton.icon(
               onPressed: _isSpinning 
                   ? null 
-                  : () async {
+                  : () {
+                      final random = Random();
+                      final winnerIndex = random.nextInt(members.length);
+                      
                       setState(() {
                         _isSpinning = true;
+                        _rouletteSelectedIndex = -1; // reset previous chosen display
                       });
 
-                      // Simple interval-based rotation animation simulation
-                      int cycles = 20; // total steps
-                      int delay = 50;  // initial delay in ms
-
-                      for (int i = 0; i < cycles; i++) {
-                        if (!mounted) return;
-                        setState(() {
-                          _rouletteSelectedIndex = (i % members.length);
-                        });
-                        
-                        // Slowly decay speed (increase delay)
-                        if (i > cycles * 0.7) {
-                          delay += 40;
-                        } else if (i > cycles * 0.5) {
-                          delay += 20;
-                        }
-                        await Future.delayed(Duration(milliseconds: delay));
-                      }
-
-                      // Pick final random winner
-                      final winnerIndex = (DateTime.now().millisecondsSinceEpoch) % members.length;
-                      if (!mounted) return;
-                      setState(() {
-                        _rouletteSelectedIndex = winnerIndex;
-                        _isSpinning = false;
-                      });
-
-                      // Show winner toast/banner
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("🎉 ${members[winnerIndex].name} has been chosen to pay!"),
-                          backgroundColor: AppTheme.primary,
-                        ),
-                      );
+                      _rouletteController.spin(winnerIndex);
                     },
               icon: const Icon(Icons.autorenew),
               label: Text(_isSpinning ? "SPINNING..." : "SPIN WHEEL"),

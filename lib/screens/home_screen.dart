@@ -180,19 +180,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                // Premium Gradient Dashboard Card
+                // Premium Glassmorphic Dashboard Card
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   child: Container(
                     height: 195,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      gradient: AppTheme.primaryGradient,
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withOpacity(0.08),
+                          Colors.white.withOpacity(0.02),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                       borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.12),
+                        width: 1.5,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primary.withOpacity(0.35),
+                          color: AppTheme.primary.withOpacity(0.15),
                           blurRadius: 20,
+                          spreadRadius: 2,
                           offset: const Offset(0, 10),
                         ),
                       ],
