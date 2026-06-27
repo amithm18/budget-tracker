@@ -22,11 +22,19 @@ class StorageService {
   }
 
   String getCurrentUserName() {
-    return _settingsBox.get('currentUserName', defaultValue: 'Amith') as String;
+    return _settingsBox.get('currentUserName', defaultValue: '') as String;
   }
 
   Future<void> setCurrentUserName(String name) async {
     await _settingsBox.put('currentUserName', name);
+  }
+
+  String getCurrency() {
+    return _settingsBox.get('currency', defaultValue: '₹') as String;
+  }
+
+  Future<void> setCurrency(String symbol) async {
+    await _settingsBox.put('currency', symbol);
   }
 
   // --- Group Operations ---

@@ -181,10 +181,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         controller: _amountController,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         style: const TextStyle(color: AppTheme.textPrimary),
-                        decoration: const InputDecoration(
-                          labelText: "Amount (₹)",
+                        decoration: InputDecoration(
+                          labelText: "Amount (${widget.controller.currency})",
                           hintText: "0.00",
-                          prefixIcon: Icon(Icons.currency_rupee, color: AppTheme.primaryLight),
+                          prefixIcon: const Icon(Icons.currency_rupee, color: AppTheme.primaryLight),
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -199,32 +199,49 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Payer Dropdown
+                      // Payer Selection Chips
                       const Text(
                         "Who Paid?",
-                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryLight),
                       ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        value: _selectedPayerId,
-                        dropdownColor: AppTheme.bgSurface,
-                        style: const TextStyle(color: AppTheme.textPrimary, fontSize: 16),
-                        decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.payment, color: AppTheme.primaryLight),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 48,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _groupMembers.length,
+                          itemBuilder: (context, index) {
+                            final m = _groupMembers[index];
+                            final isSelected = _selectedPayerId == m.id;
+                            final isMe = m.name.toLowerCase() == widget.controller.currentUserName.toLowerCase();
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: ChoiceChip(
+                                label: Text(m.name + (isMe ? " (You)" : "")),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  if (selected) {
+                                    setState(() {
+                                      _selectedPayerId = m.id;
+                                    });
+                                  }
+                                },
+                                selectedColor: AppTheme.primary,
+                                backgroundColor: AppTheme.bgSurfaceLight,
+                                labelStyle: TextStyle(
+                                  color: isSelected ? Colors.white : AppTheme.textPrimary,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(
+                                    color: isSelected ? AppTheme.primaryLight : AppTheme.border,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                        items: _groupMembers.map((m) {
-                          final isMe = m.name.toLowerCase() == widget.controller.currentUserName.toLowerCase();
-                          return DropdownMenuItem<String>(
-                            value: m.id,
-                            child: Text(m.name + (isMe ? " (You)" : "")),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          setState(() {
-                            _selectedPayerId = val;
-                          });
-                        },
-                        validator: (value) => value == null ? "Select who paid" : null,
                       ),
                     ],
                   ),
@@ -270,31 +287,32 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       const Divider(color: AppTheme.border),
                       const SizedBox(height: 8),
 
-                      // Participants Checkboxes
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _groupMembers.length,
-                        itemBuilder: (context, index) {
-                          final m = _groupMembers[index];
+                      // Participants Filter Chips
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        children: _groupMembers.map((m) {
                           final isSelected = _selectedParticipantIds.contains(m.id);
                           final isMe = m.name.toLowerCase() == widget.controller.currentUserName.toLowerCase();
-
-                          return CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(
-                              m.name + (isMe ? " (You)" : ""),
-                              style: TextStyle(
-                                color: isSelected ? AppTheme.textPrimary : AppTheme.textSecondary,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          return FilterChip(
+                            label: Text(m.name + (isMe ? " (You)" : "")),
+                            selected: isSelected,
+                            onSelected: (_) => _toggleParticipant(m.id),
+                            selectedColor: AppTheme.primary,
+                            checkmarkColor: Colors.white,
+                            backgroundColor: AppTheme.bgSurfaceLight,
+                            labelStyle: TextStyle(
+                              color: isSelected ? Colors.white : AppTheme.textPrimary,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: isSelected ? AppTheme.primaryLight : AppTheme.border,
                               ),
                             ),
-                            value: isSelected,
-                            activeColor: AppTheme.primary,
-                            checkColor: Colors.white,
-                            onChanged: (_) => _toggleParticipant(m.id),
                           );
-                        },
+                        }).toList(),
                       ),
 
                       if (_selectedParticipantIds.isNotEmpty && _amount > 0) ...[
@@ -309,7 +327,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                 style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
                               ),
                               Text(
-                                "₹${sharePerPerson.toStringAsFixed(2)}",
+                                "${widget.controller.currency}${sharePerPerson.toStringAsFixed(2)}",
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,

@@ -44,7 +44,8 @@ class BudgetController extends ChangeNotifier {
   List<Group> _groups = [];
   List<Member> _members = [];
   List<Expense> _expenses = [];
-  String _currentUserName = 'Amith'; // Default user name
+  String _currentUserName = ''; // Default user name
+  String _currency = '₹'; // Default currency symbol
 
   BudgetController(this._storageService);
 
@@ -53,6 +54,7 @@ class BudgetController extends ChangeNotifier {
   List<Member> get members => _members;
   List<Expense> get expenses => _expenses;
   String get currentUserName => _currentUserName;
+  String get currency => _currency;
 
   // --- Initialization ---
   Future<void> init() async {
@@ -60,8 +62,9 @@ class BudgetController extends ChangeNotifier {
     _members = List<Member>.from(_storageService.getMembers());
     _expenses = List<Expense>.from(_storageService.getExpenses());
 
-    // Load custom username if stored in settings
+    // Load custom username and currency if stored in settings
     _currentUserName = _storageService.getCurrentUserName();
+    _currency = _storageService.getCurrency();
 
     // Sort groups by creation date descending
     _groups.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -72,6 +75,12 @@ class BudgetController extends ChangeNotifier {
   Future<void> updateCurrentUserName(String name) async {
     _currentUserName = name.trim();
     await _storageService.setCurrentUserName(_currentUserName);
+    notifyListeners();
+  }
+
+  Future<void> updateCurrency(String symbol) async {
+    _currency = symbol;
+    await _storageService.setCurrency(symbol);
     notifyListeners();
   }
 
@@ -105,7 +114,7 @@ class BudgetController extends ChangeNotifier {
   // --- Write Operations ---
 
   /// Creates a group and its initial members
-  Future<Group> createGroup(String name, List<String> memberNames) async {
+  Future<Group> createGroup(String name, List<String> memberNames, {DateTime? dueDate}) async {
     final groupId = _uuid.v4();
     final now = DateTime.now();
 
@@ -132,6 +141,7 @@ class BudgetController extends ChangeNotifier {
       memberIds: memberIds,
       expenseIds: [],
       createdAt: now,
+      dueDate: dueDate,
     );
 
     await _storageService.saveGroup(newGroup);
@@ -171,6 +181,26 @@ class BudgetController extends ChangeNotifier {
       _groups[index] = updatedGroup;
     }
 
+    notifyListeners();
+  }
+
+  /// Updates a member's UPI ID
+  Future<void> updateMemberUpiId(String memberId, String upiId) async {
+    final member = getMemberById(memberId);
+    if (member == null) return;
+
+    final updatedMember = Member(
+      id: member.id,
+      name: member.name,
+      groupId: member.groupId,
+      upiId: upiId.trim().isEmpty ? null : upiId.trim(),
+    );
+
+    await _storageService.saveMember(updatedMember);
+    final index = _members.indexWhere((m) => m.id == memberId);
+    if (index != -1) {
+      _members[index] = updatedMember;
+    }
     notifyListeners();
   }
 
