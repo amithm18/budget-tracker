@@ -4,6 +4,7 @@ import '../models/group.dart';
 import '../models/member.dart';
 import '../theme/app_theme.dart';
 import '../widgets/antigravity_background.dart';
+import '../widgets/glassmorphic_card.dart';
 import 'create_group_screen.dart';
 import 'group_details_screen.dart';
 
@@ -183,34 +184,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Premium Glassmorphic Dashboard Card
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: Container(
-                    height: 195,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white.withOpacity(0.08),
-                          Colors.white.withOpacity(0.02),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                  child: GlassmorphicCard(
+                    borderRadius: 24,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primary.withOpacity(0.15),
+                        blurRadius: 20,
+                        spreadRadius: 2,
+                        offset: const Offset(0, 10),
                       ),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.12),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primary.withOpacity(0.15),
-                          blurRadius: 20,
-                          spreadRadius: 2,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
+                    ],
+                    child: SizedBox(
+                      height: 195,
+                      width: double.infinity,
                       child: Stack(
                         children: [
                           // Decorative transparent shapes to feel organic/premium
@@ -555,8 +541,13 @@ class _HomeScreenState extends State<HomeScreen> {
           SnackBar(content: Text("Group '${group.name}' deleted")),
         );
       },
-      child: Card(
+      child: GlassmorphicCard(
+        borderRadius: 16,
         margin: const EdgeInsets.only(bottom: 12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.08),
+          width: 1.0,
+        ),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
@@ -570,19 +561,17 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             );
           },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  left: BorderSide(
-                    color: statusColor == AppTheme.textSecondary
-                        ? Colors.transparent
-                        : statusColor,
-                    width: 5,
-                  ),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(
+                  color: statusColor == AppTheme.textSecondary
+                      ? Colors.transparent
+                      : statusColor,
+                  width: 5,
                 ),
               ),
+            ),
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
@@ -666,7 +655,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }

@@ -8,6 +8,7 @@ import 'package:budget_splitter/services/storage_service.dart';
 
 class FakeStorageService implements StorageService {
   String currentUserName = 'Amith';
+  String currency = '₹';
 
   @override
   Future<void> init() async {}
@@ -18,6 +19,14 @@ class FakeStorageService implements StorageService {
   @override
   Future<void> setCurrentUserName(String name) async {
     currentUserName = name;
+  }
+
+  @override
+  String getCurrency() => currency;
+
+  @override
+  Future<void> setCurrency(String symbol) async {
+    currency = symbol;
   }
 
   @override

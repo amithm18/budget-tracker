@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../controllers/budget_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/antigravity_background.dart';
+import '../widgets/glassmorphic_card.dart';
 
 class WelcomeScreen extends StatefulWidget {
   final BudgetController controller;
@@ -92,11 +93,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       const SizedBox(height: 32),
                       
                       // Input Panel Card
-                      Card(
-                        color: AppTheme.bgSurface,
-                        child: Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Column(
+                      GlassmorphicCard(
+                        borderRadius: 16,
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
@@ -153,7 +153,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                               ),
                             ],
                           ),
-                        ),
                       ),
                       const SizedBox(height: 24),
                       

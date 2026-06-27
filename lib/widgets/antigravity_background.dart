@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 // Helper to convert hex string to Flutter Color
 Color _hexToColor(String hex) {
@@ -84,7 +85,7 @@ class AntigravityBackground extends StatefulWidget {
     this.particleCount = 120, // Clean, performance-friendly star count
     this.particleSpread = 15.0,
     this.speed = 0.05,
-    this.particleColors = const ['#A78BFA', '#06B6D4', '#FFFFFF', '#6366F1'], // Space colors
+    this.particleColors = const ['#A78BFA', '#06B6D4', '#EC4899', '#6366F1', '#FFFFFF'], // Auroral space colors
     this.moveParticlesOnHover = true,
     this.particleHoverFactor = 1.0,
     this.alphaParticles = true,
@@ -302,6 +303,150 @@ class Particle3DPainter extends CustomPainter {
     
     final centerX = size.width / 2.0;
     final centerY = size.height / 2.0;
+
+    // Draw slowly shifting ambient cosmic nebulas (background glows)
+    final double nebulaRadius = max(size.width, size.height) * 0.75;
+    
+    // First nebula (Primary/Amber color glow)
+    final Offset nebulaCenter1 = Offset(
+      centerX + sin(elapsedTime * 0.04) * size.width * 0.15,
+      centerY + cos(elapsedTime * 0.03) * size.height * 0.15,
+    );
+    final Paint nebulaPaint1 = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          AppTheme.primary.withOpacity(0.08),
+          AppTheme.primary.withOpacity(0.02),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.5, 1.0],
+      ).createShader(Rect.fromCircle(center: nebulaCenter1, radius: nebulaRadius));
+    canvas.drawCircle(nebulaCenter1, nebulaRadius, nebulaPaint1);
+
+    // Second nebula (Secondary/Terracotta color glow)
+    final Offset nebulaCenter2 = Offset(
+      centerX - cos(elapsedTime * 0.03) * size.width * 0.2,
+      centerY - sin(elapsedTime * 0.04) * size.height * 0.2,
+    );
+    final Paint nebulaPaint2 = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          AppTheme.secondary.withOpacity(0.06),
+          AppTheme.secondary.withOpacity(0.015),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.6, 1.0],
+      ).createShader(Rect.fromCircle(center: nebulaCenter2, radius: nebulaRadius));
+    canvas.drawCircle(nebulaCenter2, nebulaRadius, nebulaPaint2);
+
+    // Third nebula (Magenta/Pink glow)
+    final Offset nebulaCenter3 = Offset(
+      centerX + cos(elapsedTime * 0.02) * size.width * 0.1,
+      centerY - sin(elapsedTime * 0.035) * size.height * 0.15,
+    );
+    final Paint nebulaPaint3 = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFFEC4899).withOpacity(0.05),
+          const Color(0xFFEC4899).withOpacity(0.01),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.5, 1.0],
+      ).createShader(Rect.fromCircle(center: nebulaCenter3, radius: nebulaRadius));
+    canvas.drawCircle(nebulaCenter3, nebulaRadius, nebulaPaint3);
+
+    // Draw the Milky Way Galaxy (tilted spiral galaxy in the background)
+    final double galaxyCenterX = centerX + size.width * 0.15;
+    final double galaxyCenterY = centerY - size.height * 0.05;
+    
+    // Core glow (bright galactic center)
+    final double coreRadius = min(size.width, size.height) * 0.14;
+    final Paint corePaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFFFFFDF5).withOpacity(0.15), // Warm bright core
+          AppTheme.primary.withOpacity(0.06),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.4, 1.0],
+      ).createShader(Rect.fromCircle(center: Offset(galaxyCenterX, galaxyCenterY), radius: coreRadius));
+    canvas.drawCircle(Offset(galaxyCenterX, galaxyCenterY), coreRadius, corePaint);
+
+    // Drawing spiral arms
+    final Random galaxyRandom = Random(12345); // Seeded to keep shape consistent across frames
+    final int starsPerArm = 120;
+    final int armsCount = 2;
+    final double galaxyRotation = elapsedTime * 0.008; // Slow rotation
+
+    // Tilt transformation variables (tilted on its X-axis to create a 3D disk view)
+    final double tiltAngle = 1.1; // in radians (~63 degrees tilt)
+    final double cosTilt = cos(tiltAngle);
+
+    for (int arm = 0; arm < armsCount; arm++) {
+      final double armOffsetAngle = arm * (2 * pi / armsCount);
+      
+      for (int i = 0; i < starsPerArm; i++) {
+        // Logarithmic spiral: r = a * e^(b * theta)
+        final double theta = (i / starsPerArm) * 3.2 * pi; // Spiral wrapping factor
+        final double r = 20.0 + 20.0 * pow(theta, 1.25); // Exponential radius growth
+        
+        // Add random dispersion/scatter to make it look like gas/dust clouds
+        final double scatter = 6.0 + 12.0 * (i / starsPerArm);
+        final double dx = (galaxyRandom.nextDouble() - 0.5) * scatter * 2;
+        final double dy = (galaxyRandom.nextDouble() - 0.5) * scatter * 2;
+
+        final double baseAngle = theta + armOffsetAngle + galaxyRotation;
+        
+        // Circular coordinates
+        final double rawX = r * cos(baseAngle) + dx;
+        final double rawY = r * sin(baseAngle) + dy;
+        
+        // Tilt projection: squeeze the Y axis to rotate the disk in 3D space
+        // Rotate the galaxy slightly in screen space (0.22 radians) to make it flow diagonally
+        final double rotatedScreenX = rawX * cos(0.22) - rawY * sin(0.22) * cosTilt;
+        final double rotatedScreenY = rawX * sin(0.22) + rawY * cos(0.22) * cosTilt;
+
+        final double finalX = galaxyCenterX + rotatedScreenX;
+        final double finalY = galaxyCenterY + rotatedScreenY;
+
+        // Clip drawing if it is too far outside the viewport
+        if (finalX < -60 || finalX > size.width + 60 || finalY < -60 || finalY > size.height + 60) {
+          continue;
+        }
+
+        // Color blend: core white/teal -> Teal -> Magenta -> Violet -> Deep Indigo
+        final double progress = i / starsPerArm;
+        Color dustColor;
+        if (progress < 0.2) {
+          dustColor = Color.lerp(const Color(0xFFE0F7FA), AppTheme.secondary, progress / 0.2)!;
+        } else if (progress < 0.55) {
+          dustColor = Color.lerp(AppTheme.secondary, const Color(0xFFEC4899), (progress - 0.2) / 0.35)!;
+        } else if (progress < 0.85) {
+          dustColor = Color.lerp(const Color(0xFFEC4899), AppTheme.primary, (progress - 0.55) / 0.30)!;
+        } else {
+          dustColor = Color.lerp(AppTheme.primary, const Color(0xFF1E1B4B), (progress - 0.85) / 0.15)!;
+        }
+
+        // Star dust opacity (denser at center, fading out towards the edges)
+        final double opacity = (0.07 * (1.0 - progress)).clamp(0.002, 0.07);
+        
+        // Draw the gas cloud particle
+        final double cloudSize = 10.0 + 22.0 * progress; // Larger soft clouds at the edges
+        final Paint dustPaint = Paint()
+          ..color = dustColor.withOpacity(opacity)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, cloudSize * 0.45);
+
+        canvas.drawCircle(Offset(finalX, finalY), cloudSize, dustPaint);
+
+        // Occasional bright stars inside spiral arms
+        if (galaxyRandom.nextDouble() < 0.15) {
+          final double starSize = 0.8 + galaxyRandom.nextDouble() * 1.5;
+          final Paint starPaint = Paint()
+            ..color = Colors.white.withOpacity(0.15 + 0.45 * (1.0 - progress));
+          canvas.drawCircle(Offset(finalX, finalY), starSize, starPaint);
+        }
+      }
+    }
 
     // Camera rotation values
     final double rotX = disableRotation ? 0.0 : sin(elapsedTime * 0.01) * 0.06;
