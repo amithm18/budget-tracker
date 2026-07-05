@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../controllers/budget_controller.dart';
 import '../models/chat_message.dart';
@@ -285,10 +287,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             CircleAvatar(
               backgroundColor: AppTheme.primary,
               radius: 18,
-              child: Text(
-                groupName.substring(0, 1).toUpperCase(),
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
+              backgroundImage: (group?.imageUrl != null && int.tryParse(group!.imageUrl!) == null)
+                  ? (kIsWeb
+                      ? NetworkImage(group.imageUrl!)
+                      : FileImage(File(group.imageUrl!))) as ImageProvider
+                  : null,
+              child: (group?.imageUrl != null && int.tryParse(group!.imageUrl!) == null)
+                  ? null
+                  : Text(
+                      groupName.substring(0, 1).toUpperCase(),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
             ),
             const SizedBox(width: 10),
             Expanded(

@@ -183,48 +183,61 @@ class _AntigravityBackgroundState extends State<AntigravityBackground>
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onHover: (event) {
+    return GestureDetector(
+      onPanUpdate: (details) {
         if (widget.moveParticlesOnHover) {
           final size = MediaQuery.of(context).size;
-          // Normalize mouse coordinates to [-1, 1]
-          final mx = (event.localPosition.dx / size.width) * 2 - 1;
-          final my = -((event.localPosition.dy / size.height) * 2 - 1);
+          final mx = (details.localPosition.dx / size.width) * 2 - 1;
+          final my = -((details.localPosition.dy / size.height) * 2 - 1);
           _targetMouse = Offset(mx, my);
         }
       },
-      onExit: (_) {
+      onPanEnd: (_) {
         _targetMouse = Offset.zero;
       },
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          _updatePhysics(MediaQuery.of(context).size);
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: Particle3DPainter(
-                    particles: _particles,
-                    shootingStars: _shootingStars,
-                    elapsedTime: _elapsedTime,
-                    spread: widget.particleSpread,
-                    baseSize: widget.particleBaseSize,
-                    sizeRandomness: widget.sizeRandomness,
-                    cameraDistance: widget.cameraDistance,
-                    disableRotation: widget.disableRotation,
-                    alphaParticles: widget.alphaParticles,
-                    pixelRatio: widget.pixelRatio,
-                    hoverOffsetX: _smoothMouseX * widget.particleHoverFactor * 6.0,
-                    hoverOffsetY: -_smoothMouseY * widget.particleHoverFactor * 6.0,
+      child: MouseRegion(
+        onHover: (event) {
+          if (widget.moveParticlesOnHover) {
+            final size = MediaQuery.of(context).size;
+            // Normalize mouse coordinates to [-1, 1]
+            final mx = (event.localPosition.dx / size.width) * 2 - 1;
+            final my = -((event.localPosition.dy / size.height) * 2 - 1);
+            _targetMouse = Offset(mx, my);
+          }
+        },
+        onExit: (_) {
+          _targetMouse = Offset.zero;
+        },
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            _updatePhysics(MediaQuery.of(context).size);
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: Particle3DPainter(
+                      particles: _particles,
+                      shootingStars: _shootingStars,
+                      elapsedTime: _elapsedTime,
+                      spread: widget.particleSpread,
+                      baseSize: widget.particleBaseSize,
+                      sizeRandomness: widget.sizeRandomness,
+                      cameraDistance: widget.cameraDistance,
+                      disableRotation: widget.disableRotation,
+                      alphaParticles: widget.alphaParticles,
+                      pixelRatio: widget.pixelRatio,
+                      hoverOffsetX: _smoothMouseX * widget.particleHoverFactor * 6.0,
+                      hoverOffsetY: -_smoothMouseY * widget.particleHoverFactor * 6.0,
+                    ),
                   ),
                 ),
-              ),
-              child!,
-            ],
-          );
-        },
-        child: widget.child,
+                child!,
+              ],
+            );
+          },
+          child: widget.child,
+        ),
       ),
     );
   }

@@ -27,7 +27,7 @@ class GroupDetailsScreen extends StatefulWidget {
   State<GroupDetailsScreen> createState() => _GroupDetailsScreenState();
 }
 
-class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
+class _GroupDetailsScreenState extends State<GroupDetailsScreen> with SingleTickerProviderStateMixin {
   final _newMemberController = TextEditingController();
   final _searchController = TextEditingController();
   String _searchQuery = '';
@@ -35,6 +35,18 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   bool _isSpinning = false;
   int _rouletteSelectedIndex = -1;
   final _rouletteController = RouletteController();
+  TabController? _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 6, vsync: this);
+    _tabController!.addListener(() {
+      if (mounted) {
+        setState(() {}); // Rebuild when tab index changes to show/hide FAB
+      }
+    });
+  }
 
   Widget _getCategoryAvatar(String title) {
     final t = title.toLowerCase();
@@ -98,6 +110,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   void dispose() {
     _newMemberController.dispose();
     _searchController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
@@ -525,88 +538,89 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         final settlements = widget.controller.getGroupSettlements(widget.groupId);
         final balances = widget.controller.getGroupBalances(widget.groupId);
 
-        return DefaultTabController(
-          length: 6,
-          child: Scaffold(
-            appBar: AppBar(
-              title: Text(group.name),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.bolt, color: AppTheme.secondary),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => GalacticDuelScreen(
-                          controller: widget.controller,
-                          groupId: widget.groupId,
-                        ),
+        final showFab = _tabController?.index == 0;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(group.name),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.bolt, color: AppTheme.secondary),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => GalacticDuelScreen(
+                        controller: widget.controller,
+                        groupId: widget.groupId,
                       ),
-                    );
-                  },
-                  tooltip: "Galactic Duel Arena",
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: AppTheme.accentRed),
-                  onPressed: () => _confirmDeleteGroup(context, group),
-                  tooltip: "Delete Group",
+                    ),
+                  );
+                },
+                tooltip: "Galactic Duel Arena",
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: AppTheme.accentRed),
+                onPressed: () => _confirmDeleteGroup(context, group),
+                tooltip: "Delete Group",
+              ),
+            ],
+            bottom: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                borderRadius: BorderRadius.circular(50),
+                color: AppTheme.primary.withOpacity(0.12),
+              ),
+              indicatorPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              labelColor: AppTheme.primaryLight,
+              unselectedLabelColor: AppTheme.textSecondary,
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              tabs: const [
+                Tab(text: "Expenses"),
+                Tab(text: "Balances"),
+                Tab(text: "Chat"),
+                Tab(text: "Analytics"),
+                Tab(text: "Members"),
+                Tab(text: "Roulette"),
+              ],
+            ),
+          ),
+          body: AntigravityBackground(
+            child: Column(
+              children: [
+                if (group.dueDate != null &&
+                    DateTime.now().isAfter(group.dueDate!) &&
+                    settlements.isNotEmpty)
+                  _buildOverdueBanner(group),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      // 1. Expenses Tab
+                      _buildExpensesTab(expenses, members),
+
+                      // 2. Balances Tab
+                      _buildBalancesTab(balances, settlements),
+
+                      // 3. Chat Tab
+                      _buildChatTab(group.id),
+
+                      // 4. Analytics Tab
+                      _buildAnalyticsTab(expenses, members),
+
+                      // 5. Members Tab
+                      _buildMembersTab(members),
+
+                      // 6. Roulette Tab
+                      _buildRouletteTab(members),
+                    ],
+                  ),
                 ),
               ],
-              bottom: TabBar(
-                indicator: BoxDecoration(
-                  borderRadius: BorderRadius.circular(50),
-                  color: AppTheme.primary.withOpacity(0.12),
-                ),
-                indicatorPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                labelColor: AppTheme.primaryLight,
-                unselectedLabelColor: AppTheme.textSecondary,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                tabs: const [
-                  Tab(text: "Expenses"),
-                  Tab(text: "Balances"),
-                  Tab(text: "Chat"),
-                  Tab(text: "Analytics"),
-                  Tab(text: "Members"),
-                  Tab(text: "Roulette"),
-                ],
-              ),
             ),
-            body: AntigravityBackground(
-              child: Column(
-                children: [
-                  if (group.dueDate != null &&
-                      DateTime.now().isAfter(group.dueDate!) &&
-                      settlements.isNotEmpty)
-                    _buildOverdueBanner(group),
-                  Expanded(
-                    child: TabBarView(
-                      children: [
-                        // 1. Expenses Tab
-                        _buildExpensesTab(expenses, members),
-
-                        // 2. Balances Tab
-                        _buildBalancesTab(balances, settlements),
-
-                        // 3. Chat Tab
-                        _buildChatTab(group.id),
-
-                        // 4. Analytics Tab
-                        _buildAnalyticsTab(expenses, members),
-
-                        // 5. Members Tab
-                        _buildMembersTab(members),
-
-                        // 6. Roulette Tab
-                        _buildRouletteTab(members),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            floatingActionButton: Builder(
-              builder: (context) {
-                return FloatingActionButton.extended(
+          ),
+          floatingActionButton: showFab
+              ? FloatingActionButton.extended(
                   onPressed: () {
                     if (members.length < 2) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -628,10 +642,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                   },
                   icon: const Icon(Icons.add_shopping_cart),
                   label: const Text("Add Expense"),
-                );
-              },
-            ),
-          ),
+                )
+              : null,
         );
       },
     );

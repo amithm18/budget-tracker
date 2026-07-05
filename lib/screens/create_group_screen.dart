@@ -1,4 +1,7 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../controllers/budget_controller.dart';
 import '../theme/app_theme.dart';
 
@@ -18,6 +21,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final List<String> _membersList = [];
   DateTime? _selectedDueDate;
   String _selectedAvatarPreset = '0'; // Default avatar preset
+  XFile? _selectedGroupPhoto; // Custom picked group photo
 
   // Preset Gradients
   final List<Gradient> _avatarGradients = [
@@ -68,6 +72,22 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     });
   }
 
+  Future<void> _pickGroupPhoto(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source, maxWidth: 600, maxHeight: 600);
+      if (picked != null) {
+        setState(() {
+          _selectedGroupPhoto = picked;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Could not access photo: $e")),
+      );
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -83,7 +103,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         _nameController.text.trim(),
         _membersList,
         dueDate: _selectedDueDate,
-        imageUrl: _selectedAvatarPreset,
+        imageUrl: _selectedGroupPhoto != null ? _selectedGroupPhoto!.path : _selectedAvatarPreset,
       );
       if (mounted) {
         Navigator.pop(context);
@@ -113,6 +133,80 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Custom Photo Upload Option
+              Center(
+                child: Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          backgroundColor: AppTheme.bgSurface,
+                          builder: (context) {
+                            return SafeArea(
+                              child: Wrap(
+                                children: [
+                                  ListTile(
+                                    leading: const Icon(Icons.photo_library, color: AppTheme.primaryLight),
+                                    title: const Text("Choose from Gallery"),
+                                    onTap: () {
+                                      Navigator.pop(context);
+                                      _pickGroupPhoto(ImageSource.gallery);
+                                    },
+                                  ),
+                                  ListTile(
+                                    leading: const Icon(Icons.camera_alt, color: AppTheme.secondary),
+                                    title: const Text("Take Photo with Camera"),
+                                    onTap: () {
+                                      Navigator.pop(context);
+                                      _pickGroupPhoto(ImageSource.camera);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      child: Container(
+                        width: 90,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppTheme.bgSurfaceLight,
+                          border: Border.all(color: AppTheme.primaryLight, width: 2),
+                          image: _selectedGroupPhoto != null
+                              ? DecorationImage(
+                                  image: kIsWeb
+                                      ? NetworkImage(_selectedGroupPhoto!.path) as ImageProvider
+                                      : FileImage(File(_selectedGroupPhoto!.path)),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: _selectedGroupPhoto == null
+                            ? const Icon(
+                                Icons.add_a_photo,
+                                color: AppTheme.textSecondary,
+                                size: 30,
+                              )
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Upload Custom Group Photo",
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textSecondary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
               // Group Avatar Preset Selector
               const Text(
                 "Choose Group Photo Preset",

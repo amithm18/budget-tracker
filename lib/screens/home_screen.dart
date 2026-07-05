@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../controllers/budget_controller.dart';
 import '../models/group.dart';
@@ -592,7 +594,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             )
-                          : _getGroupGradient(group.name),
+                          : (group.imageUrl == null ? _getGroupGradient(group.name) : null),
+                      image: (group.imageUrl != null && int.tryParse(group.imageUrl!) == null)
+                          ? DecorationImage(
+                              image: kIsWeb
+                                  ? NetworkImage(group.imageUrl!) as ImageProvider
+                                  : FileImage(File(group.imageUrl!)),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
