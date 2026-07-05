@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/group.dart';
 import '../models/member.dart';
 import '../models/expense.dart';
+import '../models/chat_message.dart';
 import '../services/storage_service.dart';
 
 class MemberBalance {
@@ -44,8 +45,19 @@ class BudgetController extends ChangeNotifier {
   List<Group> _groups = [];
   List<Member> _members = [];
   List<Expense> _expenses = [];
+  List<ChatMessage> _messages = [];
   String _currentUserName = ''; // Default user name
   String _currency = '₹'; // Default currency symbol
+
+  final List<String> cosmicRoasts = [
+    "Your debt is older than the universe. Settle up or get sucked into the event horizon!",
+    "A light-year is a unit of distance, not the speed at which you pay back your friends. Settle up!",
+    "Einstein proved time is relative, but your payback time is entering absolute zero. Settle up!",
+    "My scanners indicate your wallet has entered a localized gravity well where money cannot escape.",
+    "The expansion of the universe is faster than the speed of your payments.",
+    "Houston, we have a problem. Someone forgot to pay back their space crew.",
+    "Black holes consume everything, including the memory of your debt. Settle up before the collapse!",
+  ];
 
   BudgetController(this._storageService);
 
@@ -53,6 +65,7 @@ class BudgetController extends ChangeNotifier {
   List<Group> get groups => _groups;
   List<Member> get members => _members;
   List<Expense> get expenses => _expenses;
+  List<ChatMessage> get messages => _messages;
   String get currentUserName => _currentUserName;
   String get currency => _currency;
 
@@ -61,6 +74,7 @@ class BudgetController extends ChangeNotifier {
     _groups = List<Group>.from(_storageService.getGroups());
     _members = List<Member>.from(_storageService.getMembers());
     _expenses = List<Expense>.from(_storageService.getExpenses());
+    _messages = List<ChatMessage>.from(_storageService.getMessages());
 
     // Load custom username and currency if stored in settings
     _currentUserName = _storageService.getCurrentUserName();
@@ -95,6 +109,12 @@ class BudgetController extends ChangeNotifier {
     return groupExpenses;
   }
 
+  List<ChatMessage> getMessagesForGroup(String groupId) {
+    final groupMessages = _messages.where((m) => m.groupId == groupId).toList();
+    groupMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp)); // oldest first (chat sequence)
+    return groupMessages;
+  }
+
   Group? getGroupById(String groupId) {
     try {
       return _groups.firstWhere((g) => g.id == groupId);
@@ -111,10 +131,15 @@ class BudgetController extends ChangeNotifier {
     }
   }
 
+  String getRandomCosmicRoast() {
+    final random = DateTime.now().millisecond;
+    return cosmicRoasts[random % cosmicRoasts.length];
+  }
+
   // --- Write Operations ---
 
   /// Creates a group and its initial members
-  Future<Group> createGroup(String name, List<String> memberNames, {DateTime? dueDate}) async {
+  Future<Group> createGroup(String name, List<String> memberNames, {DateTime? dueDate, String? imageUrl}) async {
     final groupId = _uuid.v4();
     final now = DateTime.now();
 
@@ -142,6 +167,7 @@ class BudgetController extends ChangeNotifier {
       expenseIds: [],
       createdAt: now,
       dueDate: dueDate,
+      imageUrl: imageUrl,
     );
 
     await _storageService.saveGroup(newGroup);
@@ -173,6 +199,8 @@ class BudgetController extends ChangeNotifier {
       memberIds: updatedMemberIds,
       expenseIds: group.expenseIds,
       createdAt: group.createdAt,
+      dueDate: group.dueDate,
+      imageUrl: group.imageUrl,
     );
 
     await _storageService.saveGroup(updatedGroup);
@@ -211,6 +239,7 @@ class BudgetController extends ChangeNotifier {
     required double amount,
     required String paidByMemberId,
     required List<String> participantIds,
+    Map<String, double>? customAmounts,
   }) async {
     final group = getGroupById(groupId);
     if (group == null || amount <= 0 || title.trim().isEmpty) return;
@@ -224,6 +253,7 @@ class BudgetController extends ChangeNotifier {
       participantIds: participantIds,
       groupId: groupId,
       date: DateTime.now(),
+      customAmounts: customAmounts,
     );
 
     await _storageService.saveExpense(newExpense);
@@ -237,6 +267,8 @@ class BudgetController extends ChangeNotifier {
       memberIds: group.memberIds,
       expenseIds: updatedExpenseIds,
       createdAt: group.createdAt,
+      dueDate: group.dueDate,
+      imageUrl: group.imageUrl,
     );
 
     await _storageService.saveGroup(updatedGroup);
@@ -254,6 +286,7 @@ class BudgetController extends ChangeNotifier {
     _groups.removeWhere((g) => g.id == groupId);
     _members.removeWhere((m) => m.groupId == groupId);
     _expenses.removeWhere((e) => e.groupId == groupId);
+    _messages.removeWhere((m) => m.groupId == groupId);
     notifyListeners();
   }
 
@@ -276,6 +309,8 @@ class BudgetController extends ChangeNotifier {
         memberIds: group.memberIds,
         expenseIds: updatedExpenseIds,
         createdAt: group.createdAt,
+        dueDate: group.dueDate,
+        imageUrl: group.imageUrl,
       );
 
       await _storageService.saveGroup(updatedGroup);
@@ -285,6 +320,30 @@ class BudgetController extends ChangeNotifier {
       }
     }
 
+    notifyListeners();
+  }
+
+  // --- Message Operations ---
+  Future<void> sendChatMessage({
+    required String groupId,
+    required String senderId,
+    required String senderName,
+    required String content,
+    required String messageType,
+  }) async {
+    final messageId = _uuid.v4();
+    final newMessage = ChatMessage(
+      id: messageId,
+      groupId: groupId,
+      senderId: senderId,
+      senderName: senderName,
+      messageType: messageType,
+      content: content,
+      timestamp: DateTime.now(),
+    );
+
+    await _storageService.saveMessage(newMessage);
+    _messages.add(newMessage);
     notifyListeners();
   }
 
@@ -305,12 +364,21 @@ class BudgetController extends ChangeNotifier {
       }
 
       // Distribute share to participants
-      final participantsCount = expense.participantIds.length;
-      if (participantsCount > 0) {
-        final share = expense.amount / participantsCount;
-        for (var partId in expense.participantIds) {
+      final hasCustomAmounts = expense.customAmounts != null && expense.customAmounts!.isNotEmpty;
+      if (hasCustomAmounts) {
+        expense.customAmounts!.forEach((partId, customAmt) {
           if (spent.containsKey(partId)) {
-            spent[partId] = spent[partId]! + share;
+            spent[partId] = spent[partId]! + customAmt;
+          }
+        });
+      } else {
+        final participantsCount = expense.participantIds.length;
+        if (participantsCount > 0) {
+          final share = expense.amount / participantsCount;
+          for (var partId in expense.participantIds) {
+            if (spent.containsKey(partId)) {
+              spent[partId] = spent[partId]! + share;
+            }
           }
         }
       }
@@ -435,6 +503,7 @@ class BudgetController extends ChangeNotifier {
     _groups.clear();
     _members.clear();
     _expenses.clear();
+    _messages.clear();
     notifyListeners();
   }
 }

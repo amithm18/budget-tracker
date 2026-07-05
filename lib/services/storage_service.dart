@@ -2,15 +2,18 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/group.dart';
 import '../models/member.dart';
 import '../models/expense.dart';
+import '../models/chat_message.dart';
 
 class StorageService {
   static const String _groupsBoxName = 'groups';
   static const String _membersBoxName = 'members';
   static const String _expensesBoxName = 'expenses';
+  static const String _messagesBoxName = 'messages';
 
   late Box _groupsBox;
   late Box _membersBox;
   late Box _expensesBox;
+  late Box _messagesBox;
   late Box _settingsBox;
 
   Future<void> init() async {
@@ -18,6 +21,7 @@ class StorageService {
     _groupsBox = await Hive.openBox(_groupsBoxName);
     _membersBox = await Hive.openBox(_membersBoxName);
     _expensesBox = await Hive.openBox(_expensesBoxName);
+    _messagesBox = await Hive.openBox(_messagesBoxName);
     _settingsBox = await Hive.openBox('settings');
   }
 
@@ -50,7 +54,7 @@ class StorageService {
 
   Future<void> deleteGroup(String groupId) async {
     await _groupsBox.delete(groupId);
-    // Also clean up members and expenses associated with this group
+    // Also clean up members, expenses, and messages associated with this group
     final membersToDelete = getMembers().where((m) => m.groupId == groupId).map((m) => m.id);
     for (var id in membersToDelete) {
       await deleteMember(id);
@@ -59,6 +63,7 @@ class StorageService {
     for (var id in expensesToDelete) {
       await deleteExpense(id);
     }
+    await deleteMessagesForGroup(groupId);
   }
 
   // --- Member Operations ---
@@ -91,11 +96,30 @@ class StorageService {
     await _expensesBox.delete(expenseId);
   }
 
+  // --- Message Operations ---
+  List<ChatMessage> getMessages() {
+    return _messagesBox.values
+        .map((val) => ChatMessage.fromMap(Map<dynamic, dynamic>.from(val as Map)))
+        .toList();
+  }
+
+  Future<void> saveMessage(ChatMessage message) async {
+    await _messagesBox.put(message.id, message.toMap());
+  }
+
+  Future<void> deleteMessagesForGroup(String groupId) async {
+    final toDelete = getMessages().where((m) => m.groupId == groupId).map((m) => m.id);
+    for (var id in toDelete) {
+      await _messagesBox.delete(id);
+    }
+  }
+
   // Clear all data (useful for testing or reset)
   Future<void> clearAll() async {
     await _groupsBox.clear();
     await _membersBox.clear();
     await _expensesBox.clear();
+    await _messagesBox.clear();
     await _settingsBox.clear();
   }
 }

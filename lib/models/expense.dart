@@ -6,6 +6,7 @@ class Expense {
   final List<String> participantIds;  // who's involved
   final String groupId;
   final DateTime date;
+  final Map<String, double>? customAmounts; // memberId -> custom split amount (optional)
 
   Expense({
     required this.id,
@@ -15,6 +16,7 @@ class Expense {
     required this.participantIds,
     required this.groupId,
     required this.date,
+    this.customAmounts,
   });
 
   Map<String, dynamic> toMap() => {
@@ -25,6 +27,7 @@ class Expense {
         'participantIds': participantIds,
         'groupId': groupId,
         'date': date.toIso8601String(),
+        'customAmounts': customAmounts?.map((key, value) => MapEntry(key, value)),
       };
 
   factory Expense.fromMap(Map<dynamic, dynamic> map) => Expense(
@@ -35,5 +38,13 @@ class Expense {
         participantIds: List<String>.from(map['participantIds'] as List? ?? []),
         groupId: map['groupId'] as String,
         date: DateTime.parse(map['date'] as String),
+        customAmounts: map['customAmounts'] != null
+            ? Map<String, double>.from(
+                (map['customAmounts'] as Map).map(
+                  (k, v) => MapEntry(k as String, (v as num).toDouble()),
+                ),
+              )
+            : null,
       );
 }
+

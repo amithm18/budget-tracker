@@ -17,6 +17,16 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _memberInputController = TextEditingController();
   final List<String> _membersList = [];
   DateTime? _selectedDueDate;
+  String _selectedAvatarPreset = '0'; // Default avatar preset
+
+  // Preset Gradients
+  final List<Gradient> _avatarGradients = [
+    const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF0EA5E9)]), // Blue/Indigo
+    const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]), // Green
+    const LinearGradient(colors: [Color(0xFFF43F5E), Color(0xFFE11D48)]), // Rose
+    const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)]), // Purple/Pink
+    const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]), // Amber/Orange
+  ];
 
   @override
   void initState() {
@@ -73,6 +83,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         _nameController.text.trim(),
         _membersList,
         dueDate: _selectedDueDate,
+        imageUrl: _selectedAvatarPreset,
       );
       if (mounted) {
         Navigator.pop(context);
@@ -102,6 +113,59 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Group Avatar Preset Selector
+              const Text(
+                "Choose Group Photo Preset",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryLight,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 60,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _avatarGradients.length,
+                  itemBuilder: (context, index) {
+                    final isSelected = _selectedAvatarPreset == index.toString();
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedAvatarPreset = index.toString();
+                        });
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 12),
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: _avatarGradients[index],
+                          border: Border.all(
+                            color: isSelected ? Colors.white : Colors.transparent,
+                            width: 2.5,
+                          ),
+                          boxShadow: [
+                            if (isSelected)
+                              BoxShadow(
+                                color: Colors.white.withOpacity(0.3),
+                                blurRadius: 8,
+                                spreadRadius: 1,
+                              ),
+                          ],
+                        ),
+                        child: isSelected
+                            ? const Icon(Icons.check, color: Colors.white, size: 28)
+                            : null,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
+
               // Group Name Input
               const Text(
                 "Group Details",

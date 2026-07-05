@@ -10,6 +10,8 @@ import '../widgets/antigravity_background.dart';
 import '../widgets/analytics_pie_chart.dart';
 import '../widgets/roulette_wheel.dart';
 import 'add_expense_screen.dart';
+import 'group_chat_screen.dart';
+import 'galactic_duel_screen.dart';
 
 class GroupDetailsScreen extends StatefulWidget {
   final BudgetController controller;
@@ -524,11 +526,26 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         final balances = widget.controller.getGroupBalances(widget.groupId);
 
         return DefaultTabController(
-          length: 5,
+          length: 6,
           child: Scaffold(
             appBar: AppBar(
               title: Text(group.name),
               actions: [
+                IconButton(
+                  icon: const Icon(Icons.bolt, color: AppTheme.secondary),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GalacticDuelScreen(
+                          controller: widget.controller,
+                          groupId: widget.groupId,
+                        ),
+                      ),
+                    );
+                  },
+                  tooltip: "Galactic Duel Arena",
+                ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline, color: AppTheme.accentRed),
                   onPressed: () => _confirmDeleteGroup(context, group),
@@ -547,6 +564,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                 tabs: const [
                   Tab(text: "Expenses"),
                   Tab(text: "Balances"),
+                  Tab(text: "Chat"),
                   Tab(text: "Analytics"),
                   Tab(text: "Members"),
                   Tab(text: "Roulette"),
@@ -569,13 +587,16 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                         // 2. Balances Tab
                         _buildBalancesTab(balances, settlements),
 
-                        // 3. Analytics Tab
+                        // 3. Chat Tab
+                        _buildChatTab(group.id),
+
+                        // 4. Analytics Tab
                         _buildAnalyticsTab(expenses, members),
 
-                        // 4. Members Tab
+                        // 5. Members Tab
                         _buildMembersTab(members),
 
-                        // 5. Roulette Tab
+                        // 6. Roulette Tab
                         _buildRouletteTab(members),
                       ],
                     ),
@@ -1049,6 +1070,30 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                 icon: const Icon(Icons.notifications_active_outlined, color: AppTheme.primaryLight, size: 20),
                                 onPressed: () => _showReminderDialog(tx, group.name),
                                 tooltip: "Remind",
+                              ),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                icon: const Icon(Icons.rocket_launch_outlined, color: AppTheme.secondary, size: 20),
+                                onPressed: () {
+                                  final roast = widget.controller.getRandomCosmicRoast();
+                                  final receiver = widget.controller.getMemberById(tx.toMemberId);
+                                  final upiId = receiver?.upiId;
+                                  
+                                  String roastText = "$roast\n\nPlease settle ${widget.controller.currency}${tx.amount.toStringAsFixed(2)} to ${tx.toMemberName}.";
+                                  if (upiId != null && upiId.isNotEmpty) {
+                                    final upiUrl = 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(tx.toMemberName)}&am=${tx.amount.toStringAsFixed(2)}&cu=INR';
+                                    roastText += "\nPay via: $upiUrl";
+                                  }
+                                  
+                                  Clipboard.setData(ClipboardData(text: roastText));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("🚀 Galactic Roast copied to clipboard! Paste it to WhatsApp!"),
+                                      backgroundColor: AppTheme.primary,
+                                    ),
+                                  );
+                                },
+                                tooltip: "Black Hole Roast",
                               ),
                               const SizedBox(width: 4),
                               ElevatedButton(
@@ -1653,6 +1698,13 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildChatTab(String groupId) {
+    return GroupChatScreen(
+      controller: widget.controller,
+      groupId: groupId,
     );
   }
 }

@@ -580,7 +580,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 52,
                     width: 52,
                     decoration: BoxDecoration(
-                      gradient: _getGroupGradient(group.name),
+                      gradient: (group.imageUrl != null && int.tryParse(group.imageUrl!) != null)
+                          ? LinearGradient(
+                              colors: [
+                                [const Color(0xFF6366F1), const Color(0xFF0EA5E9)],
+                                [const Color(0xFF10B981), const Color(0xFF059669)],
+                                [const Color(0xFFF43F5E), const Color(0xFFE11D48)],
+                                [const Color(0xFF8B5CF6), const Color(0xFFEC4899)],
+                                [const Color(0xFFF59E0B), const Color(0xFFD97706)],
+                              ][int.parse(group.imageUrl!)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : _getGroupGradient(group.name),
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
