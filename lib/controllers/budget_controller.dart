@@ -224,6 +224,32 @@ class BudgetController extends ChangeNotifier {
     await refreshData();
   }
 
+  /// Updates an existing expense in Supabase and refreshes data
+  Future<void> updateExpense({
+    required String expenseId,
+    required String groupId,
+    required String title,
+    required double amount,
+    required String paidByMemberId,
+    required List<String> participantIds,
+    required DateTime date,
+  }) async {
+    if (amount <= 0 || title.trim().isEmpty) return;
+
+    final updatedExpense = Expense(
+      id: expenseId,
+      title: title.trim(),
+      amount: amount,
+      paidByMemberId: paidByMemberId,
+      participantIds: participantIds,
+      groupId: groupId,
+      date: date,
+    );
+
+    await _storageService.saveExpense(updatedExpense);
+    await refreshData();
+  }
+
   /// Deletes a group and all its sub-records (via Postgres Cascade Deletes)
   Future<void> deleteGroup(String groupId) async {
     await _storageService.deleteGroup(groupId);

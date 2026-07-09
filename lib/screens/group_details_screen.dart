@@ -923,9 +923,30 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       },
                       child: Card(
                         margin: const EdgeInsets.only(bottom: 12),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            // Settle payments shouldn't be edited like regular expenses
+                            if (isSettlement) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Settlement payments cannot be edited directly.")),
+                              );
+                              return;
+                            }
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddExpenseScreen(
+                                  controller: widget.controller,
+                                  groupId: widget.groupId,
+                                  expenseToEdit: expense,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
@@ -1000,7 +1021,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           ),
                         ),
                       ),
-                    );
+                    ),
+                  );
                   },
                 ),
           ),

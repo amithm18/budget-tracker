@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import '../controllers/budget_controller.dart';
 import '../models/member.dart';
+import '../models/expense.dart';
 import '../theme/app_theme.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   final BudgetController controller;
   final String groupId;
+  final Expense? expenseToEdit;
 
   const AddExpenseScreen({
     super.key,
     required this.controller,
     required this.groupId,
+    this.expenseToEdit,
   });
 
   @override
@@ -32,18 +35,26 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     super.initState();
     _groupMembers = widget.controller.getMembersForGroup(widget.groupId);
 
-    // Default payer is the current user if they are in the group, otherwise the first member
-    final currentUserMember = _groupMembers.firstWhere(
-      (m) => m.name.toLowerCase() == widget.controller.currentUserName.toLowerCase(),
-      orElse: () => _groupMembers.isNotEmpty ? _groupMembers.first : Member(id: '', name: '', groupId: ''),
-    );
+    if (widget.expenseToEdit != null) {
+      _titleController.text = widget.expenseToEdit!.title;
+      _amountController.text = widget.expenseToEdit!.amount.toString();
+      _amount = widget.expenseToEdit!.amount;
+      _selectedPayerId = widget.expenseToEdit!.paidByMemberId;
+      _selectedParticipantIds.addAll(widget.expenseToEdit!.participantIds);
+    } else {
+      // Default payer is the current user if they are in the group, otherwise the first member
+      final currentUserMember = _groupMembers.firstWhere(
+        (m) => m.name.toLowerCase() == widget.controller.currentUserName.toLowerCase(),
+        orElse: () => _groupMembers.isNotEmpty ? _groupMembers.first : Member(id: '', name: '', groupId: ''),
+      );
 
-    if (currentUserMember.id.isNotEmpty) {
-      _selectedPayerId = currentUserMember.id;
+      if (currentUserMember.id.isNotEmpty) {
+        _selectedPayerId = currentUserMember.id;
+      }
+
+      // Default: split among all members
+      _selectedParticipantIds.addAll(_groupMembers.map((m) => m.id));
     }
-
-    // Default: split among all members
-    _selectedParticipantIds.addAll(_groupMembers.map((m) => m.id));
 
     // Listen to amount changes to dynamically calculate share
     _amountController.addListener(_onAmountChanged);
@@ -105,24 +116,44 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
 
     try {
-      await widget.controller.addExpenseToGroup(
-        groupId: widget.groupId,
-        title: _titleController.text.trim(),
-        amount: _amount,
-        paidByMemberId: _selectedPayerId!,
-        participantIds: _selectedParticipantIds,
-      );
+      if (widget.expenseToEdit != null) {
+        await widget.controller.updateExpense(
+          expenseId: widget.expenseToEdit!.id,
+          groupId: widget.groupId,
+          title: _titleController.text.trim(),
+          amount: _amount,
+          paidByMemberId: _selectedPayerId!,
+          participantIds: _selectedParticipantIds,
+          date: widget.expenseToEdit!.date,
+        );
+      } else {
+        await widget.controller.addExpenseToGroup(
+          groupId: widget.groupId,
+          title: _titleController.text.trim(),
+          amount: _amount,
+          paidByMemberId: _selectedPayerId!,
+          participantIds: _selectedParticipantIds,
+        );
+      }
 
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Expense '${_titleController.text}' added.")),
+          SnackBar(
+            content: Text(widget.expenseToEdit != null
+                ? "Expense '${_titleController.text}' updated."
+                : "Expense '${_titleController.text}' added."),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error adding expense: $e")),
+          SnackBar(
+            content: Text(widget.expenseToEdit != null
+                ? "Error updating expense: $e"
+                : "Error adding expense: $e"),
+          ),
         );
       }
     }
@@ -136,7 +167,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Add Expense"),
+        title: Text(widget.expenseToEdit != null ? "Edit Expense" : "Add Expense"),
       ),
       body: Form(
         key: _formKey,
@@ -351,7 +382,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 height: 52,
                 child: ElevatedButton(
                   onPressed: _submit,
-                  child: const Text("Add Expense"),
+                  child: Text(widget.expenseToEdit != null ? "Save Changes" : "Add Expense"),
                 ),
               ),
             ],
