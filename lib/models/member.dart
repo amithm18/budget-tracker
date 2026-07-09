@@ -18,10 +18,17 @@ class Member {
         'upiId': upiId,
       };
 
+  Map<String, dynamic> toSupabaseMap() => {
+        'id': id,
+        'name': name,
+        'group_id': groupId,
+        'upi_id': upiId,
+      };
+
   factory Member.fromMap(Map<dynamic, dynamic> map) => Member(
         id: map['id'] as String,
         name: map['name'] as String,
-        groupId: map['groupId'] as String,
-        upiId: map['upiId'] as String?,
+        groupId: (map['groupId'] ?? map['group_id']) as String,
+        upiId: (map['upiId'] ?? map['upi_id']) as String?,
       );
 }

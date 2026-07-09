@@ -114,6 +114,88 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showJoinGroupDialog() {
+    final TextEditingController codeController = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppTheme.bgSurface,
+              title: const Text("Join Group", style: TextStyle(color: AppTheme.textPrimary)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Enter the 8-character Group Code shared by your friend:",
+                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: codeController,
+                    style: const TextStyle(color: AppTheme.textPrimary),
+                    maxLength: 8,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: "Group Code",
+                      hintText: "e.g. a7d8c3e2",
+                      counterText: "",
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final code = codeController.text.trim();
+                          if (code.isEmpty) return;
+
+                          setDialogState(() {
+                            isSubmitting = true;
+                          });
+
+                          final success = await widget.controller.joinGroup(code);
+
+                          if (mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  success
+                                      ? "Successfully joined the group!"
+                                      : "Group not found or error joining. Please check the code.",
+                                ),
+                                backgroundColor: success ? AppTheme.accentGreen : AppTheme.accentRed,
+                              ),
+                            );
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text("Join"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -384,31 +466,60 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 // Group List or Empty State
                 Expanded(
-                  child: groups.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 80),
-                          itemCount: groups.length,
-                          itemBuilder: (context, index) {
-                            final group = groups[index];
-                            return _buildGroupItem(group);
-                          },
-                        ),
+                  child: RefreshIndicator(
+                    color: AppTheme.primary,
+                    backgroundColor: AppTheme.bgSurface,
+                    onRefresh: () async {
+                      await widget.controller.refreshData();
+                    },
+                    child: groups.isEmpty
+                        ? SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.45,
+                              child: _buildEmptyState(),
+                            ),
+                          )
+                        : ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 80),
+                            itemCount: groups.length,
+                            itemBuilder: (context, index) {
+                              final group = groups[index];
+                              return _buildGroupItem(group);
+                            },
+                          ),
+                  ),
                 ),
               ],
             ),
           )),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CreateGroupScreen(controller: widget.controller),
-                ),
-              );
-            },
-            icon: const Icon(Icons.group_add),
-            label: const Text("New Group"),
+          floatingActionButton: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              FloatingActionButton.extended(
+                heroTag: 'joinGroupFab',
+                onPressed: _showJoinGroupDialog,
+                icon: const Icon(Icons.link),
+                label: const Text("Join Group"),
+                backgroundColor: AppTheme.bgSurfaceLight,
+                foregroundColor: AppTheme.primaryLight,
+              ),
+              const SizedBox(width: 12),
+              FloatingActionButton.extended(
+                heroTag: 'newGroupFab',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CreateGroupScreen(controller: widget.controller),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.group_add),
+                label: const Text("New Group"),
+              ),
+            ],
           ),
         );
       },

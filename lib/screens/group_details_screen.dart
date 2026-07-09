@@ -529,6 +529,34 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             appBar: AppBar(
               title: Text(group.name),
               actions: [
+                // Share Group Code
+                IconButton(
+                  icon: const Icon(Icons.share, color: AppTheme.primaryLight),
+                  tooltip: "Copy Group Code",
+                  onPressed: () {
+                    final code = group.id.substring(0, 8).toUpperCase();
+                    Clipboard.setData(ClipboardData(text: code));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Group Code '$code' copied to clipboard! Share it with friends to let them join."),
+                        backgroundColor: AppTheme.primary,
+                      ),
+                    );
+                  },
+                ),
+                // Sync/Refresh
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: AppTheme.primaryLight),
+                  tooltip: "Sync from Cloud",
+                  onPressed: () async {
+                    await widget.controller.refreshData();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Synced successfully with cloud database.")),
+                      );
+                    }
+                  },
+                ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline, color: AppTheme.accentRed),
                   onPressed: () => _confirmDeleteGroup(context, group),
@@ -721,22 +749,35 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
   Widget _buildExpensesTab(List<Expense> expenses, List<Member> members) {
     if (expenses.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.receipt_long_outlined, size: 64, color: AppTheme.textSecondary),
-            const SizedBox(height: 16),
-            const Text(
-              "No expenses added yet",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+      return RefreshIndicator(
+        color: AppTheme.primary,
+        backgroundColor: AppTheme.bgSurface,
+        onRefresh: () async {
+          await widget.controller.refreshData();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.65,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.receipt_long_outlined, size: 64, color: AppTheme.textSecondary),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "No expenses added yet",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Tap 'Add Expense' below to log group spending.",
+                    style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              "Tap 'Add Expense' below to log group spending.",
-              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
-            ),
-          ],
+          ),
         ),
       );
     }
@@ -810,12 +851,25 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
         // Expense List
         Expanded(
-          child: filteredExpenses.isEmpty
-              ? _buildNoResultsFallback()
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-                  itemCount: filteredExpenses.length,
-                  itemBuilder: (context, index) {
+          child: RefreshIndicator(
+            color: AppTheme.primary,
+            backgroundColor: AppTheme.bgSurface,
+            onRefresh: () async {
+              await widget.controller.refreshData();
+            },
+            child: filteredExpenses.isEmpty
+                ? SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.45,
+                      child: _buildNoResultsFallback(),
+                    ),
+                  )
+                : ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                    itemCount: filteredExpenses.length,
+                    itemBuilder: (context, index) {
                     final expense = filteredExpenses[index];
                     final payer = widget.controller.getMemberById(expense.paidByMemberId);
                     final payerName = payer?.name ?? "Unknown";
@@ -949,6 +1003,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     );
                   },
                 ),
+          ),
         ),
       ],
     );

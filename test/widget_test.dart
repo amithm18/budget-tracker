@@ -30,19 +30,19 @@ class FakeStorageService implements StorageService {
   }
 
   @override
-  List<Group> getGroups() => [];
+  Future<List<Group>> getGroups() async => [];
   @override
   Future<void> saveGroup(Group group) async {}
   @override
   Future<void> deleteGroup(String groupId) async {}
   @override
-  List<Member> getMembers() => [];
+  Future<List<Member>> getMembers() async => [];
   @override
   Future<void> saveMember(Member member) async {}
   @override
   Future<void> deleteMember(String memberId) async {}
   @override
-  List<Expense> getExpenses() => [];
+  Future<List<Expense>> getExpenses() async => [];
   @override
   Future<void> saveExpense(Expense expense) async {}
   @override

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/storage_service.dart';
 import 'controllers/budget_controller.dart';
 import 'theme/app_theme.dart';
@@ -7,6 +8,12 @@ import 'screens/welcome_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Supabase
+  await Supabase.initialize(
+    url: StorageService.supabaseUrl,
+    anonKey: StorageService.supabaseAnonKey,
+  );
   
   // Initialize Hive and services
   final storageService = StorageService();

@@ -1,23 +1,21 @@
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/group.dart';
 import '../models/member.dart';
 import '../models/expense.dart';
 
 class StorageService {
-  static const String _groupsBoxName = 'groups';
-  static const String _membersBoxName = 'members';
-  static const String _expensesBoxName = 'expenses';
+  // Replace these with your actual Supabase URL and Anon Key!
+  static const String supabaseUrl = 'https://uhzxgbhsgsllzfibapeu.supabase.co';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoenhnYmhzZ3NsbHpmaWJhcGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1Nzc0ODYsImV4cCI6MjA5OTE1MzQ4Nn0.BrkLOdJFffvStk4CsSyCXKefT4ZQvqoCWbleWewUDSQ';
 
-  late Box _groupsBox;
-  late Box _membersBox;
-  late Box _expensesBox;
   late Box _settingsBox;
+
+  SupabaseClient get _supabase => Supabase.instance.client;
 
   Future<void> init() async {
     await Hive.initFlutter();
-    _groupsBox = await Hive.openBox(_groupsBoxName);
-    _membersBox = await Hive.openBox(_membersBoxName);
-    _expensesBox = await Hive.openBox(_expensesBoxName);
     _settingsBox = await Hive.openBox('settings');
   }
 
@@ -38,64 +36,101 @@ class StorageService {
   }
 
   // --- Group Operations ---
-  List<Group> getGroups() {
-    return _groupsBox.values
-        .map((val) => Group.fromMap(Map<dynamic, dynamic>.from(val as Map)))
-        .toList();
+  Future<List<Group>> getGroups() async {
+    try {
+      final response = await _supabase.from('groups').select();
+      return (response as List).map((val) => Group.fromMap(val)).toList();
+    } catch (e) {
+      debugPrint("Error fetching groups: $e");
+      return [];
+    }
   }
 
   Future<void> saveGroup(Group group) async {
-    await _groupsBox.put(group.id, group.toMap());
+    try {
+      await _supabase.from('groups').upsert(group.toSupabaseMap());
+    } catch (e) {
+      debugPrint("Error saving group: $e");
+      rethrow;
+    }
   }
 
   Future<void> deleteGroup(String groupId) async {
-    await _groupsBox.delete(groupId);
-    // Also clean up members and expenses associated with this group
-    final membersToDelete = getMembers().where((m) => m.groupId == groupId).map((m) => m.id);
-    for (var id in membersToDelete) {
-      await deleteMember(id);
-    }
-    final expensesToDelete = getExpenses().where((e) => e.groupId == groupId).map((e) => e.id);
-    for (var id in expensesToDelete) {
-      await deleteExpense(id);
+    try {
+      // PostgreSQL cascade delete will clean up associated members & expenses automatically
+      await _supabase.from('groups').delete().eq('id', groupId);
+    } catch (e) {
+      debugPrint("Error deleting group: $e");
+      rethrow;
     }
   }
 
   // --- Member Operations ---
-  List<Member> getMembers() {
-    return _membersBox.values
-        .map((val) => Member.fromMap(Map<dynamic, dynamic>.from(val as Map)))
-        .toList();
+  Future<List<Member>> getMembers() async {
+    try {
+      final response = await _supabase.from('members').select();
+      return (response as List).map((val) => Member.fromMap(val)).toList();
+    } catch (e) {
+      debugPrint("Error fetching members: $e");
+      return [];
+    }
   }
 
   Future<void> saveMember(Member member) async {
-    await _membersBox.put(member.id, member.toMap());
+    try {
+      await _supabase.from('members').upsert(member.toSupabaseMap());
+    } catch (e) {
+      debugPrint("Error saving member: $e");
+      rethrow;
+    }
   }
 
   Future<void> deleteMember(String memberId) async {
-    await _membersBox.delete(memberId);
+    try {
+      await _supabase.from('members').delete().eq('id', memberId);
+    } catch (e) {
+      debugPrint("Error deleting member: $e");
+      rethrow;
+    }
   }
 
   // --- Expense Operations ---
-  List<Expense> getExpenses() {
-    return _expensesBox.values
-        .map((val) => Expense.fromMap(Map<dynamic, dynamic>.from(val as Map)))
-        .toList();
+  Future<List<Expense>> getExpenses() async {
+    try {
+      final response = await _supabase.from('expenses').select();
+      return (response as List).map((val) => Expense.fromMap(val)).toList();
+    } catch (e) {
+      debugPrint("Error fetching expenses: $e");
+      return [];
+    }
   }
 
   Future<void> saveExpense(Expense expense) async {
-    await _expensesBox.put(expense.id, expense.toMap());
+    try {
+      await _supabase.from('expenses').upsert(expense.toSupabaseMap());
+    } catch (e) {
+      debugPrint("Error saving expense: $e");
+      rethrow;
+    }
   }
 
   Future<void> deleteExpense(String expenseId) async {
-    await _expensesBox.delete(expenseId);
+    try {
+      await _supabase.from('expenses').delete().eq('id', expenseId);
+    } catch (e) {
+      debugPrint("Error deleting expense: $e");
+      rethrow;
+    }
   }
 
-  // Clear all data (useful for testing or reset)
+  // Clear all local data and empty the remote tables (useful for reset)
   Future<void> clearAll() async {
-    await _groupsBox.clear();
-    await _membersBox.clear();
-    await _expensesBox.clear();
     await _settingsBox.clear();
+    try {
+      // Deleting all rows from groups will cascade delete all members and expenses
+      await _supabase.from('groups').delete().neq('id', 'dummy');
+    } catch (e) {
+      debugPrint("Error clearing remote database: $e");
+    }
   }
 }

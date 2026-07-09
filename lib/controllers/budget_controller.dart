@@ -58,17 +58,40 @@ class BudgetController extends ChangeNotifier {
 
   // --- Initialization ---
   Future<void> init() async {
-    _groups = List<Group>.from(_storageService.getGroups());
-    _members = List<Member>.from(_storageService.getMembers());
-    _expenses = List<Expense>.from(_storageService.getExpenses());
+    _groups = List<Group>.from(await _storageService.getGroups());
+    _members = List<Member>.from(await _storageService.getMembers());
+    _expenses = List<Expense>.from(await _storageService.getExpenses());
 
     // Load custom username and currency if stored in settings
     _currentUserName = _storageService.getCurrentUserName();
     _currency = _storageService.getCurrency();
 
+    // Reconstruct list references dynamically for RDBMS normalization
+    _relinkLocalData();
+
     // Sort groups by creation date descending
     _groups.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     notifyListeners();
+  }
+
+  void _relinkLocalData() {
+    for (var i = 0; i < _groups.length; i++) {
+      final g = _groups[i];
+      final gMembers = _members.where((m) => m.groupId == g.id).map((m) => m.id).toList();
+      final gExpenses = _expenses.where((e) => e.groupId == g.id).map((e) => e.id).toList();
+      _groups[i] = Group(
+        id: g.id,
+        name: g.name,
+        createdAt: g.createdAt,
+        dueDate: g.dueDate,
+        memberIds: gMembers,
+        expenseIds: gExpenses,
+      );
+    }
+  }
+
+  Future<void> refreshData() async {
+    await init();
   }
 
   // --- Profile Operations ---
@@ -113,14 +136,12 @@ class BudgetController extends ChangeNotifier {
 
   // --- Write Operations ---
 
-  /// Creates a group and its initial members
+  /// Creates a group and its initial members in Supabase
   Future<Group> createGroup(String name, List<String> memberNames, {DateTime? dueDate}) async {
     final groupId = _uuid.v4();
     final now = DateTime.now();
 
-    final List<String> memberIds = [];
-
-    // Create and save members
+    // Create and save members first
     for (var mName in memberNames) {
       if (mName.trim().isEmpty) continue;
       final memberId = _uuid.v4();
@@ -130,30 +151,26 @@ class BudgetController extends ChangeNotifier {
         groupId: groupId,
       );
       await _storageService.saveMember(newMember);
-      _members.add(newMember);
-      memberIds.add(memberId);
     }
 
     // Create and save group
     final newGroup = Group(
       id: groupId,
       name: name.trim(),
-      memberIds: memberIds,
-      expenseIds: [],
+      memberIds: [], // resolved dynamically from members table
+      expenseIds: [], // resolved dynamically from expenses table
       createdAt: now,
       dueDate: dueDate,
     );
 
     await _storageService.saveGroup(newGroup);
-    _groups.insert(0, newGroup); // insert at start
-    notifyListeners();
+    await refreshData();
     return newGroup;
   }
 
-  /// Adds a member to an existing group
+  /// Adds a member to an existing group in Supabase
   Future<void> addMemberToGroup(String groupId, String name) async {
-    final group = getGroupById(groupId);
-    if (group == null || name.trim().isEmpty) return;
+    if (name.trim().isEmpty) return;
 
     final memberId = _uuid.v4();
     final newMember = Member(
@@ -163,25 +180,7 @@ class BudgetController extends ChangeNotifier {
     );
 
     await _storageService.saveMember(newMember);
-    _members.add(newMember);
-
-    // Update group's member references
-    final updatedMemberIds = List<String>.from(group.memberIds)..add(memberId);
-    final updatedGroup = Group(
-      id: group.id,
-      name: group.name,
-      memberIds: updatedMemberIds,
-      expenseIds: group.expenseIds,
-      createdAt: group.createdAt,
-    );
-
-    await _storageService.saveGroup(updatedGroup);
-    final index = _groups.indexWhere((g) => g.id == groupId);
-    if (index != -1) {
-      _groups[index] = updatedGroup;
-    }
-
-    notifyListeners();
+    await refreshData();
   }
 
   /// Updates a member's UPI ID
@@ -197,11 +196,7 @@ class BudgetController extends ChangeNotifier {
     );
 
     await _storageService.saveMember(updatedMember);
-    final index = _members.indexWhere((m) => m.id == memberId);
-    if (index != -1) {
-      _members[index] = updatedMember;
-    }
-    notifyListeners();
+    await refreshData();
   }
 
   /// Adds an expense to a group and updates the group references
@@ -212,8 +207,7 @@ class BudgetController extends ChangeNotifier {
     required String paidByMemberId,
     required List<String> participantIds,
   }) async {
-    final group = getGroupById(groupId);
-    if (group == null || amount <= 0 || title.trim().isEmpty) return;
+    if (amount <= 0 || title.trim().isEmpty) return;
 
     final expenseId = _uuid.v4();
     final newExpense = Expense(
@@ -227,65 +221,64 @@ class BudgetController extends ChangeNotifier {
     );
 
     await _storageService.saveExpense(newExpense);
-    _expenses.add(newExpense);
-
-    // Update group's expense references
-    final updatedExpenseIds = List<String>.from(group.expenseIds)..add(expenseId);
-    final updatedGroup = Group(
-      id: group.id,
-      name: group.name,
-      memberIds: group.memberIds,
-      expenseIds: updatedExpenseIds,
-      createdAt: group.createdAt,
-    );
-
-    await _storageService.saveGroup(updatedGroup);
-    final index = _groups.indexWhere((g) => g.id == groupId);
-    if (index != -1) {
-      _groups[index] = updatedGroup;
-    }
-
-    notifyListeners();
+    await refreshData();
   }
 
-  /// Deletes a group and all its sub-records
+  /// Deletes a group and all its sub-records (via Postgres Cascade Deletes)
   Future<void> deleteGroup(String groupId) async {
     await _storageService.deleteGroup(groupId);
-    _groups.removeWhere((g) => g.id == groupId);
-    _members.removeWhere((m) => m.groupId == groupId);
-    _expenses.removeWhere((e) => e.groupId == groupId);
-    notifyListeners();
+    await refreshData();
   }
 
   /// Deletes an individual expense from a group
   Future<void> deleteExpense(String expenseId) async {
-    final expenseIndex = _expenses.indexWhere((e) => e.id == expenseId);
-    if (expenseIndex == -1) return;
-
-    final expense = _expenses[expenseIndex];
-    final group = getGroupById(expense.groupId);
-
     await _storageService.deleteExpense(expenseId);
-    _expenses.removeAt(expenseIndex);
+    await refreshData();
+  }
 
-    if (group != null) {
-      final updatedExpenseIds = List<String>.from(group.expenseIds)..remove(expenseId);
-      final updatedGroup = Group(
-        id: group.id,
-        name: group.name,
-        memberIds: group.memberIds,
-        expenseIds: updatedExpenseIds,
-        createdAt: group.createdAt,
+  /// Connects current user to an existing group using its code (prefix of UUID)
+  Future<bool> joinGroup(String groupCode) async {
+    if (groupCode.trim().isEmpty) return false;
+    final code = groupCode.trim().toLowerCase();
+
+    try {
+      final cloudGroups = await _storageService.getGroups();
+      Group? targetGroup;
+      for (var g in cloudGroups) {
+        if (g.id.toLowerCase().startsWith(code) || g.id.toLowerCase() == code) {
+          targetGroup = g;
+          break;
+        }
+      }
+
+      if (targetGroup == null) {
+        return false;
+      }
+
+      // Check if current user is already in this group
+      final cloudMembers = await _storageService.getMembers();
+      final groupMembers = cloudMembers.where((m) => m.groupId == targetGroup!.id).toList();
+
+      final isAlreadyMember = groupMembers.any(
+        (m) => m.name.trim().toLowerCase() == _currentUserName.trim().toLowerCase(),
       );
 
-      await _storageService.saveGroup(updatedGroup);
-      final index = _groups.indexWhere((g) => g.id == group.id);
-      if (index != -1) {
-        _groups[index] = updatedGroup;
+      if (!isAlreadyMember) {
+        final memberId = _uuid.v4();
+        final newMember = Member(
+          id: memberId,
+          name: _currentUserName.trim(),
+          groupId: targetGroup.id,
+        );
+        await _storageService.saveMember(newMember);
       }
-    }
 
-    notifyListeners();
+      await refreshData();
+      return true;
+    } catch (e) {
+      debugPrint("Error joining group: $e");
+      return false;
+    }
   }
 
   // --- Split Calculations ---

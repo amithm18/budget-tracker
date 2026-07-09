@@ -34,7 +34,7 @@ class FakeStorageService implements StorageService {
   }
 
   @override
-  List<Group> getGroups() => groups;
+  Future<List<Group>> getGroups() async => groups;
 
   @override
   Future<void> saveGroup(Group group) async {
@@ -48,7 +48,7 @@ class FakeStorageService implements StorageService {
   }
 
   @override
-  List<Member> getMembers() => members;
+  Future<List<Member>> getMembers() async => members;
 
   @override
   Future<void> saveMember(Member member) async {
@@ -62,7 +62,7 @@ class FakeStorageService implements StorageService {
   }
 
   @override
-  List<Expense> getExpenses() => expenses;
+  Future<List<Expense>> getExpenses() async => expenses;
 
   @override
   Future<void> saveExpense(Expense expense) async {
