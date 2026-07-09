@@ -55,6 +55,8 @@ class FakeStorageService implements StorageService {
   @override
   Future<List<Member>> getMembersOfGroup(String groupId) async => [];
   @override
+  Future<void> updateMemberNameForUser(String newName) async {}
+  @override
   Future<void> clearAll() async {}
 }
 

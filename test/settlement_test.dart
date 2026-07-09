@@ -95,6 +95,21 @@ class FakeStorageService implements StorageService {
   }
 
   @override
+  Future<void> updateMemberNameForUser(String newName) async {
+    for (var i = 0; i < members.length; i++) {
+      if (members[i].userId == getCurrentUserId()) {
+        members[i] = Member(
+          id: members[i].id,
+          name: newName,
+          groupId: members[i].groupId,
+          upiId: members[i].upiId,
+          userId: members[i].userId,
+        );
+      }
+    }
+  }
+
+  @override
   Future<void> clearAll() async {
     groups.clear();
     members.clear();

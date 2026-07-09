@@ -103,6 +103,20 @@ class StorageService {
     }
   }
 
+  Future<void> updateMemberNameForUser(String newName) async {
+    try {
+      final userId = getCurrentUserId();
+      if (userId.isEmpty) return;
+
+      await _supabase
+          .from('members')
+          .update({'name': newName.trim()})
+          .eq('user_id', userId);
+    } catch (e) {
+      debugPrint("Error updating member name in database: $e");
+    }
+  }
+
   Future<void> saveGroup(Group group) async {
     try {
       await _supabase.from('groups').upsert(group.toSupabaseMap());

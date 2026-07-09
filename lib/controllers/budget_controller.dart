@@ -98,6 +98,7 @@ class BudgetController extends ChangeNotifier {
   Future<void> updateCurrentUserName(String name) async {
     _currentUserName = name.trim();
     await _storageService.setCurrentUserName(_currentUserName);
+    await _storageService.updateMemberNameForUser(_currentUserName);
     await refreshData();
   }
 
