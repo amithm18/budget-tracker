@@ -48,6 +48,10 @@ class FakeStorageService implements StorageService {
   @override
   Future<void> deleteExpense(String expenseId) async {}
   @override
+  Future<Group?> getGroupByCode(String groupCode) async => null;
+  @override
+  Future<List<Member>> getMembersOfGroup(String groupId) async => [];
+  @override
   Future<void> clearAll() async {}
 }
 

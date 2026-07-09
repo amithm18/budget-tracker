@@ -38,10 +38,55 @@ class StorageService {
   // --- Group Operations ---
   Future<List<Group>> getGroups() async {
     try {
-      final response = await _supabase.from('groups').select();
+      final userName = getCurrentUserName().trim().toLowerCase();
+      if (userName.isEmpty) return [];
+
+      // 1. Fetch group IDs where the current user is a member
+      final membersResponse = await _supabase
+          .from('members')
+          .select('group_id')
+          .ilike('name', userName);
+
+      final List<String> userGroupIds = (membersResponse as List)
+          .map((m) => m['group_id'] as String)
+          .toList();
+
+      if (userGroupIds.isEmpty) return [];
+
+      // 2. Fetch the corresponding groups
+      final response = await _supabase
+          .from('groups')
+          .select()
+          .inFilter('id', userGroupIds);
+
       return (response as List).map((val) => Group.fromMap(val)).toList();
     } catch (e) {
       debugPrint("Error fetching groups: $e");
+      return [];
+    }
+  }
+
+  Future<Group?> getGroupByCode(String groupCode) async {
+    try {
+      final response = await _supabase
+          .from('groups')
+          .select()
+          .like('id', '${groupCode.toLowerCase()}%');
+      
+      if ((response as List).isEmpty) return null;
+      return Group.fromMap(response.first);
+    } catch (e) {
+      debugPrint("Error fetching group by code: $e");
+      return null;
+    }
+  }
+
+  Future<List<Member>> getMembersOfGroup(String groupId) async {
+    try {
+      final response = await _supabase.from('members').select().eq('group_id', groupId);
+      return (response as List).map((val) => Member.fromMap(val)).toList();
+    } catch (e) {
+      debugPrint("Error fetching members of group: $e");
       return [];
     }
   }
@@ -68,7 +113,27 @@ class StorageService {
   // --- Member Operations ---
   Future<List<Member>> getMembers() async {
     try {
-      final response = await _supabase.from('members').select();
+      final userName = getCurrentUserName().trim().toLowerCase();
+      if (userName.isEmpty) return [];
+
+      // 1. Fetch group IDs where the current user is a member
+      final membersResponse = await _supabase
+          .from('members')
+          .select('group_id')
+          .ilike('name', userName);
+
+      final List<String> userGroupIds = (membersResponse as List)
+          .map((m) => m['group_id'] as String)
+          .toList();
+
+      if (userGroupIds.isEmpty) return [];
+
+      // 2. Fetch members belonging to those groups
+      final response = await _supabase
+          .from('members')
+          .select()
+          .inFilter('group_id', userGroupIds);
+
       return (response as List).map((val) => Member.fromMap(val)).toList();
     } catch (e) {
       debugPrint("Error fetching members: $e");
@@ -97,7 +162,27 @@ class StorageService {
   // --- Expense Operations ---
   Future<List<Expense>> getExpenses() async {
     try {
-      final response = await _supabase.from('expenses').select();
+      final userName = getCurrentUserName().trim().toLowerCase();
+      if (userName.isEmpty) return [];
+
+      // 1. Fetch group IDs where the current user is a member
+      final membersResponse = await _supabase
+          .from('members')
+          .select('group_id')
+          .ilike('name', userName);
+
+      final List<String> userGroupIds = (membersResponse as List)
+          .map((m) => m['group_id'] as String)
+          .toList();
+
+      if (userGroupIds.isEmpty) return [];
+
+      // 2. Fetch expenses belonging to those groups
+      final response = await _supabase
+          .from('expenses')
+          .select()
+          .inFilter('group_id', userGroupIds);
+
       return (response as List).map((val) => Expense.fromMap(val)).toList();
     } catch (e) {
       debugPrint("Error fetching expenses: $e");

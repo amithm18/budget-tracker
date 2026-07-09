@@ -76,6 +76,22 @@ class FakeStorageService implements StorageService {
   }
 
   @override
+  Future<Group?> getGroupByCode(String groupCode) async {
+    try {
+      return groups.firstWhere(
+        (g) => g.id.toLowerCase().startsWith(groupCode.toLowerCase()) || g.id.toLowerCase() == groupCode.toLowerCase()
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<List<Member>> getMembersOfGroup(String groupId) async {
+    return members.where((m) => m.groupId == groupId).toList();
+  }
+
+  @override
   Future<void> clearAll() async {
     groups.clear();
     members.clear();

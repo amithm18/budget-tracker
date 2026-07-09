@@ -98,7 +98,7 @@ class BudgetController extends ChangeNotifier {
   Future<void> updateCurrentUserName(String name) async {
     _currentUserName = name.trim();
     await _storageService.setCurrentUserName(_currentUserName);
-    notifyListeners();
+    await refreshData();
   }
 
   Future<void> updateCurrency(String symbol) async {
@@ -268,22 +268,13 @@ class BudgetController extends ChangeNotifier {
     final code = groupCode.trim().toLowerCase();
 
     try {
-      final cloudGroups = await _storageService.getGroups();
-      Group? targetGroup;
-      for (var g in cloudGroups) {
-        if (g.id.toLowerCase().startsWith(code) || g.id.toLowerCase() == code) {
-          targetGroup = g;
-          break;
-        }
-      }
-
+      final targetGroup = await _storageService.getGroupByCode(code);
       if (targetGroup == null) {
         return false;
       }
 
       // Check if current user is already in this group
-      final cloudMembers = await _storageService.getMembers();
-      final groupMembers = cloudMembers.where((m) => m.groupId == targetGroup!.id).toList();
+      final groupMembers = await _storageService.getMembersOfGroup(targetGroup.id);
 
       final isAlreadyMember = groupMembers.any(
         (m) => m.name.trim().toLowerCase() == _currentUserName.trim().toLowerCase(),
