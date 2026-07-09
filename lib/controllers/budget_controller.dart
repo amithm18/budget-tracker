@@ -141,7 +141,18 @@ class BudgetController extends ChangeNotifier {
     final groupId = _uuid.v4();
     final now = DateTime.now();
 
-    // Create and save members first
+    // 1. Create and save group first so it exists in PostgreSQL
+    final newGroup = Group(
+      id: groupId,
+      name: name.trim(),
+      memberIds: [], // resolved dynamically from members table
+      expenseIds: [], // resolved dynamically from expenses table
+      createdAt: now,
+      dueDate: dueDate,
+    );
+    await _storageService.saveGroup(newGroup);
+
+    // 2. Create and save members afterward (satisfying the foreign key constraint)
     for (var mName in memberNames) {
       if (mName.trim().isEmpty) continue;
       final memberId = _uuid.v4();
@@ -153,17 +164,6 @@ class BudgetController extends ChangeNotifier {
       await _storageService.saveMember(newMember);
     }
 
-    // Create and save group
-    final newGroup = Group(
-      id: groupId,
-      name: name.trim(),
-      memberIds: [], // resolved dynamically from members table
-      expenseIds: [], // resolved dynamically from expenses table
-      createdAt: now,
-      dueDate: dueDate,
-    );
-
-    await _storageService.saveGroup(newGroup);
     await refreshData();
     return newGroup;
   }
