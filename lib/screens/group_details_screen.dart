@@ -1133,8 +1133,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       separatorBuilder: (context, index) => const Divider(color: AppTheme.border),
                       itemBuilder: (context, index) {
                         final tx = settlements[index];
-                        final isFromMe = tx.fromMemberName.toLowerCase() == widget.controller.currentUserName.toLowerCase();
-                        final isToMe = tx.toMemberName.toLowerCase() == widget.controller.currentUserName.toLowerCase();
+                        final currentUserMember = widget.controller.getCurrentUserMember(widget.groupId);
+                        final isFromMe = currentUserMember != null && tx.fromMemberId == currentUserMember.id;
+                        final isToMe = currentUserMember != null && tx.toMemberId == currentUserMember.id;
 
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1223,7 +1224,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                 balanceColor = AppTheme.accentRed;
               }
 
-              final isMe = bal.name.toLowerCase() == widget.controller.currentUserName.toLowerCase();
+              final currentUserMember = widget.controller.getCurrentUserMember(widget.groupId);
+              final isMe = currentUserMember != null && bal.memberId == currentUserMember.id;
 
               final totalGroupSpending = balances.fold<double>(0, (sum, item) => sum + item.totalSpent);
               final spendingShareProgress = totalGroupSpending > 0 
@@ -1346,7 +1348,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             itemCount: members.length,
             itemBuilder: (context, index) {
               final member = members[index];
-              final isMe = member.name.toLowerCase() == widget.controller.currentUserName.toLowerCase();
+              final isMe = member.userId == widget.controller.currentUserId;
 
               final hasUpi = member.upiId != null && member.upiId!.isNotEmpty;
               return Card(

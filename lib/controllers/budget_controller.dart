@@ -101,6 +101,16 @@ class BudgetController extends ChangeNotifier {
     await refreshData();
   }
 
+  String get currentUserId => _storageService.getCurrentUserId();
+
+  Member? getCurrentUserMember(String groupId) {
+    try {
+      return _members.firstWhere((m) => m.groupId == groupId && m.userId == _storageService.getCurrentUserId());
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> updateCurrency(String symbol) async {
     _currency = symbol;
     await _storageService.setCurrency(symbol);

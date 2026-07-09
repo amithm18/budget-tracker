@@ -44,7 +44,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     } else {
       // Default payer is the current user if they are in the group, otherwise the first member
       final currentUserMember = _groupMembers.firstWhere(
-        (m) => m.name.toLowerCase() == widget.controller.currentUserName.toLowerCase(),
+        (m) => m.userId == widget.controller.currentUserId,
         orElse: () => _groupMembers.isNotEmpty ? _groupMembers.first : Member(id: '', name: '', groupId: ''),
       );
 
@@ -244,7 +244,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           itemBuilder: (context, index) {
                             final m = _groupMembers[index];
                             final isSelected = _selectedPayerId == m.id;
-                            final isMe = m.name.toLowerCase() == widget.controller.currentUserName.toLowerCase();
+                            final isMe = m.userId == widget.controller.currentUserId;
                             return Padding(
                               padding: const EdgeInsets.only(right: 8.0),
                               child: ChoiceChip(
@@ -324,7 +324,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         runSpacing: 8.0,
                         children: _groupMembers.map((m) {
                           final isSelected = _selectedParticipantIds.contains(m.id);
-                          final isMe = m.name.toLowerCase() == widget.controller.currentUserName.toLowerCase();
+                          final isMe = m.userId == widget.controller.currentUserId;
                           return FilterChip(
                             label: Text(m.name + (isMe ? " (You)" : "")),
                             selected: isSelected,
