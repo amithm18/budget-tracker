@@ -21,6 +21,9 @@ class FakeStorageService implements StorageService {
   String getCurrentUserName() => currentUserName;
 
   @override
+  String getCurrentUserId() => 'test-device-uuid';
+
+  @override
   Future<void> setCurrentUserName(String name) async {
     currentUserName = name;
   }

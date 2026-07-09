@@ -163,6 +163,58 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     );
   }
 
+  void _deleteMember(Member member) async {
+    // 1. Check if member can be deleted
+    final canDelete = widget.controller.canDeleteMember(widget.groupId, member.id);
+    if (!canDelete) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Cannot delete '${member.name}' because they have active expenses in this group."),
+          backgroundColor: AppTheme.accentRed,
+        ),
+      );
+      return;
+    }
+
+    // 2. Show confirmation dialog
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.bgSurface,
+        title: const Text("Delete Member?"),
+        content: Text("Are you sure you want to delete '${member.name}' from the group?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentRed),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await widget.controller.deleteMemberFromGroup(widget.groupId, member.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Member '${member.name}' deleted.")),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error deleting member: $e")),
+          );
+        }
+      }
+    }
+  }
+
   Future<void> _recordSettlement(Transaction tx) async {
     await widget.controller.addExpenseToGroup(
       groupId: widget.groupId,
@@ -1319,9 +1371,20 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       color: hasUpi ? AppTheme.primaryLight : AppTheme.textSecondary,
                     ),
                   ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.edit, color: AppTheme.primaryLight),
-                    onPressed: () => _showEditUpiDialog(member),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: AppTheme.primaryLight, size: 20),
+                        onPressed: () => _showEditUpiDialog(member),
+                        tooltip: "Edit UPI",
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: AppTheme.accentRed, size: 20),
+                        onPressed: () => _deleteMember(member),
+                        tooltip: "Delete Member",
+                      ),
+                    ],
                   ),
                 ),
               );

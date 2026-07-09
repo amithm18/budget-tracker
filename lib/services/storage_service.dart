@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import '../models/group.dart';
 import '../models/member.dart';
 import '../models/expense.dart';
@@ -17,6 +18,17 @@ class StorageService {
   Future<void> init() async {
     await Hive.initFlutter();
     _settingsBox = await Hive.openBox('settings');
+
+    // Ensure device has a unique user ID
+    String currentUserId = _settingsBox.get('currentUserId', defaultValue: '') as String;
+    if (currentUserId.isEmpty) {
+      currentUserId = const Uuid().v4();
+      await _settingsBox.put('currentUserId', currentUserId);
+    }
+  }
+
+  String getCurrentUserId() {
+    return _settingsBox.get('currentUserId', defaultValue: '') as String;
   }
 
   String getCurrentUserName() {
@@ -38,14 +50,14 @@ class StorageService {
   // --- Group Operations ---
   Future<List<Group>> getGroups() async {
     try {
-      final userName = getCurrentUserName().trim().toLowerCase();
-      if (userName.isEmpty) return [];
+      final userId = getCurrentUserId();
+      if (userId.isEmpty) return [];
 
       // 1. Fetch group IDs where the current user is a member
       final membersResponse = await _supabase
           .from('members')
           .select('group_id')
-          .ilike('name', userName);
+          .eq('user_id', userId);
 
       final List<String> userGroupIds = (membersResponse as List)
           .map((m) => m['group_id'] as String)
@@ -113,14 +125,14 @@ class StorageService {
   // --- Member Operations ---
   Future<List<Member>> getMembers() async {
     try {
-      final userName = getCurrentUserName().trim().toLowerCase();
-      if (userName.isEmpty) return [];
+      final userId = getCurrentUserId();
+      if (userId.isEmpty) return [];
 
       // 1. Fetch group IDs where the current user is a member
       final membersResponse = await _supabase
           .from('members')
           .select('group_id')
-          .ilike('name', userName);
+          .eq('user_id', userId);
 
       final List<String> userGroupIds = (membersResponse as List)
           .map((m) => m['group_id'] as String)
@@ -162,14 +174,14 @@ class StorageService {
   // --- Expense Operations ---
   Future<List<Expense>> getExpenses() async {
     try {
-      final userName = getCurrentUserName().trim().toLowerCase();
-      if (userName.isEmpty) return [];
+      final userId = getCurrentUserId();
+      if (userId.isEmpty) return [];
 
       // 1. Fetch group IDs where the current user is a member
       final membersResponse = await _supabase
           .from('members')
           .select('group_id')
-          .ilike('name', userName);
+          .eq('user_id', userId);
 
       final List<String> userGroupIds = (membersResponse as List)
           .map((m) => m['group_id'] as String)

@@ -156,10 +156,12 @@ class BudgetController extends ChangeNotifier {
     for (var mName in memberNames) {
       if (mName.trim().isEmpty) continue;
       final memberId = _uuid.v4();
+      final isCurrentUser = mName.trim().toLowerCase() == _currentUserName.trim().toLowerCase();
       final newMember = Member(
         id: memberId,
         name: mName.trim(),
         groupId: groupId,
+        userId: isCurrentUser ? _storageService.getCurrentUserId() : null,
       );
       await _storageService.saveMember(newMember);
     }
@@ -262,6 +264,22 @@ class BudgetController extends ChangeNotifier {
     await refreshData();
   }
 
+  /// Checks if a member is involved in any expenses as either the payer or participant
+  bool canDeleteMember(String groupId, String memberId) {
+    return !_expenses.any((e) =>
+        e.groupId == groupId &&
+        (e.paidByMemberId == memberId || e.participantIds.contains(memberId)));
+  }
+
+  /// Deletes a member from the group if they have no expenses
+  Future<void> deleteMemberFromGroup(String groupId, String memberId) async {
+    if (!canDeleteMember(groupId, memberId)) {
+      throw Exception("Cannot delete a member with active expenses.");
+    }
+    await _storageService.deleteMember(memberId);
+    await refreshData();
+  }
+
   /// Connects current user to an existing group using its code (prefix of UUID)
   Future<bool> joinGroup(String groupCode) async {
     if (groupCode.trim().isEmpty) return false;
@@ -273,21 +291,42 @@ class BudgetController extends ChangeNotifier {
         return false;
       }
 
-      // Check if current user is already in this group
+      // Fetch group members from Supabase directly
       final groupMembers = await _storageService.getMembersOfGroup(targetGroup.id);
 
-      final isAlreadyMember = groupMembers.any(
-        (m) => m.name.trim().toLowerCase() == _currentUserName.trim().toLowerCase(),
+      // 1. Check if the user's device is already linked to a member in this group
+      final isAlreadyLinked = groupMembers.any(
+        (m) => m.userId == _storageService.getCurrentUserId(),
       );
 
-      if (!isAlreadyMember) {
-        final memberId = _uuid.v4();
-        final newMember = Member(
-          id: memberId,
-          name: _currentUserName.trim(),
-          groupId: targetGroup.id,
+      if (!isAlreadyLinked) {
+        // 2. Look for an unlinked placeholder member with the matching username (case-insensitive)
+        final matchingPlaceholder = groupMembers.firstWhere(
+          (m) => m.userId == null && m.name.trim().toLowerCase() == _currentUserName.trim().toLowerCase(),
+          orElse: () => Member(id: '', name: '', groupId: ''),
         );
-        await _storageService.saveMember(newMember);
+
+        if (matchingPlaceholder.id.isNotEmpty) {
+          // Link the placeholder to this device's unique user ID
+          final updatedMember = Member(
+            id: matchingPlaceholder.id,
+            name: matchingPlaceholder.name,
+            groupId: matchingPlaceholder.groupId,
+            upiId: matchingPlaceholder.upiId,
+            userId: _storageService.getCurrentUserId(),
+          );
+          await _storageService.saveMember(updatedMember);
+        } else {
+          // Create a new member row linked to this device's unique user ID
+          final memberId = _uuid.v4();
+          final newMember = Member(
+            id: memberId,
+            name: _currentUserName.trim(),
+            groupId: targetGroup.id,
+            userId: _storageService.getCurrentUserId(),
+          );
+          await _storageService.saveMember(newMember);
+        }
       }
 
       await refreshData();
