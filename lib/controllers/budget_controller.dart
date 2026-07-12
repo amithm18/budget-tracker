@@ -206,6 +206,7 @@ class BudgetController extends ChangeNotifier {
       name: member.name,
       groupId: member.groupId,
       upiId: upiId.trim().isEmpty ? null : upiId.trim(),
+      userId: member.userId,
     );
 
     await _storageService.saveMember(updatedMember);
