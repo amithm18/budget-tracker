@@ -928,7 +928,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     final isSettlement = expense.title.startsWith("Settle:");
 
                     // Get names of participants
-                    final participantNames = expense.participantIds
+                    final participantNames = expense.cleanParticipantIds
                         .map((id) => widget.controller.getMemberById(id)?.name ?? "Unknown")
                         .join(", ");
 

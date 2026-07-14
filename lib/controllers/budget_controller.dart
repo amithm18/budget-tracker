@@ -280,7 +280,7 @@ class BudgetController extends ChangeNotifier {
   bool canDeleteMember(String groupId, String memberId) {
     return !_expenses.any((e) =>
         e.groupId == groupId &&
-        (e.paidByMemberId == memberId || e.participantIds.contains(memberId)));
+        (e.paidByMemberId == memberId || e.cleanParticipantIds.contains(memberId)));
   }
 
   /// Deletes a member from the group if they have no expenses
@@ -366,15 +366,12 @@ class BudgetController extends ChangeNotifier {
       }
 
       // Distribute share to participants
-      final participantsCount = expense.participantIds.length;
-      if (participantsCount > 0) {
-        final share = expense.amount / participantsCount;
-        for (var partId in expense.participantIds) {
-          if (spent.containsKey(partId)) {
-            spent[partId] = spent[partId]! + share;
-          }
+      final calculatedSpent = expense.getCalculatedSpent();
+      calculatedSpent.forEach((partId, partSpent) {
+        if (spent.containsKey(partId)) {
+          spent[partId] = spent[partId]! + partSpent;
         }
-      }
+      });
     }
 
     return groupMembers.map((m) {

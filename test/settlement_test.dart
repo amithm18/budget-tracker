@@ -241,5 +241,101 @@ void main() {
       expect(settlements.first.toMemberName, "Amith");
       expect(settlements.first.amount, closeTo(40.0, 0.01));
     });
+
+    test('Should calculate correct custom splits (amount, share, percent)', () async {
+      final group = await controller.createGroup(
+        "Custom Splits Trip",
+        ["Amith", "Bob", "Charlie"],
+      );
+
+      final members = controller.getMembersForGroup(group.id);
+      final amith = members.firstWhere((m) => m.name == "Amith");
+      final bob = members.firstWhere((m) => m.name == "Bob");
+      final charlie = members.firstWhere((m) => m.name == "Charlie");
+
+      // 1. Amount split: ₹100 total, Amith pays.
+      // Amith gets 50, Bob gets 30, Charlie gets 20.
+      await controller.addExpenseToGroup(
+        groupId: group.id,
+        title: "Lunch (custom amounts)",
+        amount: 100.0,
+        paidByMemberId: amith.id,
+        participantIds: [
+          "${amith.id}:amount:50.0",
+          "${bob.id}:amount:30.0",
+          "${charlie.id}:amount:20.0",
+        ],
+      );
+
+      // Balances:
+      // Amith: paid 100, spent 50 -> net = +50
+      // Bob: paid 0, spent 30 -> net = -30
+      // Charlie: paid 0, spent 20 -> net = -20
+      var balances = controller.getGroupBalances(group.id);
+      expect(balances.firstWhere((b) => b.memberId == amith.id).netBalance, closeTo(50.0, 0.01));
+      expect(balances.firstWhere((b) => b.memberId == bob.id).netBalance, closeTo(-30.0, 0.01));
+      expect(balances.firstWhere((b) => b.memberId == charlie.id).netBalance, closeTo(-20.0, 0.01));
+
+      // 2. Share split: ₹120 total, Bob pays.
+      // Amith gets 3 shares, Bob gets 2 shares, Charlie gets 1 share. Total shares = 6.
+      // Spent:
+      // Amith: 3/6 * 120 = 60
+      // Bob: 2/6 * 120 = 40
+      // Charlie: 1/6 * 120 = 20
+      await controller.addExpenseToGroup(
+        groupId: group.id,
+        title: "Snacks (custom shares)",
+        amount: 120.0,
+        paidByMemberId: bob.id,
+        participantIds: [
+          "${amith.id}:share:3.0",
+          "${bob.id}:share:2.0",
+          "${charlie.id}:share:1.0",
+        ],
+      );
+
+      // Balances accumulated:
+      // Amith: net balance from before +50. Paid 0, spent 60 -> net is 50 - 60 = -10
+      // Bob: net balance from before -30. Paid 120, spent 40 -> net is -30 + 120 - 40 = +50
+      // Charlie: net balance from before -20. Paid 0, spent 20 -> net is -20 - 20 = -40
+      balances = controller.getGroupBalances(group.id);
+      expect(balances.firstWhere((b) => b.memberId == amith.id).netBalance, closeTo(-10.0, 0.01));
+      expect(balances.firstWhere((b) => b.memberId == bob.id).netBalance, closeTo(50.0, 0.01));
+      expect(balances.firstWhere((b) => b.memberId == charlie.id).netBalance, closeTo(-40.0, 0.01));
+
+      // 3. Percent split: ₹200 total, Charlie pays.
+      // Amith gets 50%, Bob gets 30%, Charlie gets 20%.
+      // Spent:
+      // Amith: 50% of 200 = 100
+      // Bob: 30% of 200 = 60
+      // Charlie: 20% of 200 = 40
+      await controller.addExpenseToGroup(
+        groupId: group.id,
+        title: "Drinks (percentages)",
+        amount: 200.0,
+        paidByMemberId: charlie.id,
+        participantIds: [
+          "${amith.id}:percent:50.0",
+          "${bob.id}:percent:30.0",
+          "${charlie.id}:percent:20.0",
+        ],
+      );
+
+      // Balances accumulated:
+      // Amith: previous -10. Paid 0, spent 100 -> net = -110
+      // Bob: previous +50. Paid 0, spent 60 -> net = -10
+      // Charlie: previous -40. Paid 200, spent 40 -> net is -40 + 200 - 40 = +120
+      balances = controller.getGroupBalances(group.id);
+      expect(balances.firstWhere((b) => b.memberId == amith.id).netBalance, closeTo(-110.0, 0.01));
+      expect(balances.firstWhere((b) => b.memberId == bob.id).netBalance, closeTo(-10.0, 0.01));
+      expect(balances.firstWhere((b) => b.memberId == charlie.id).netBalance, closeTo(120.0, 0.01));
+
+      // Verify settlements:
+      // Amith owes Charlie 110, Bob owes Charlie 10
+      final settlements = controller.getGroupSettlements(group.id);
+      expect(settlements.length, 2);
+      expect(settlements.any((s) => s.fromMemberName == "Amith" && s.toMemberName == "Charlie" && s.amount == 110.0), true);
+      expect(settlements.any((s) => s.fromMemberName == "Bob" && s.toMemberName == "Charlie" && s.amount == 10.0), true);
+    });
   });
 }
